@@ -1,26 +1,30 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Minimal reset + app tokens */
+*,
+*::before,
+*::after { box-sizing: border-box; }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html, body, #__next { height: 100%; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background-color: theme('colors.slate.50');
+  color: theme('colors.slate.800');
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+::selection {
+  background: theme('colors.sky.200');
+  color: theme('colors.slate.900');
+}
+/* Primitives reference (not CSS):
+Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+Card: rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-6
+Headings: text-3xl (page) · text-lg (section) · text-sm (labels)
+Primary button: inline-flex items-center rounded-lg bg-sky-600 px-4 py-2 text-white text-sm font-medium hover:bg-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600
+Inputs: rounded-lg border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500
+*/
