@@ -1,8 +1,9 @@
+@import "tailwindcss";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Minimal reset + app tokens */
+/* Minimal reset */
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -11,16 +12,16 @@ html, body, #__next { height: 100%; }
 
 body {
   margin: 0;
-  background-color: theme('colors.slate.50');
-  color: theme('colors.slate.800');
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Accessible selection colors (approx Tailwind sky-200 / slate-900) */
 ::selection {
-  background: theme('colors.sky.200');
-  color: theme('colors.slate.900');
+  background: #bae6fd;
+  color: #0f172a;
 }
+
 /* Primitives reference (not CSS):
 Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
 Card: rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-6
