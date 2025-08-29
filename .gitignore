@@ -47,3 +47,11 @@ node_modules
 node_modules
 .next
 .vercel
+.env*
+node_modules
+.next
+.vercel
+.env*
+node_modules
+.next
+.vercel
