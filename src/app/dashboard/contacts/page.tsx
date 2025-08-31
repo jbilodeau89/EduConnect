@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 import NewContactForm, { ContactItem } from "@/components/NewContactForm";
 import Modal from "@/components/Modal";
 
@@ -11,45 +11,69 @@ export default function ContactsPage() {
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const uid = sessionData.session?.user.id;
-      if (!uid) return;
+      try {
+        const supabase = getSupabase();
 
-      // 👉 Order by created_at so newest logged entry is first
-      const { data: contacts } = await supabase
-        .from("contacts")
-        .select("id, subject, summary, occurred_at, created_at, method, category, student_id")
-        .eq("owner_id", uid)
-        .order("created_at", { ascending: false })
-        .limit(20);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user.id;
+        if (!uid) {
+          if (mounted) setItems([]);
+          return;
+        }
 
-      if (!contacts) {
+        // 👉 Order by created_at so newest logged entry is first
+        const { data: contacts, error: contactsErr } = await supabase
+          .from("contacts")
+          .select(
+            "id, subject, summary, occurred_at, created_at, method, category, student_id"
+          )
+          .eq("owner_id", uid)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (contactsErr) throw contactsErr;
+
+        if (!contacts || contacts.length === 0) {
+          if (mounted) setItems([]);
+          return;
+        }
+
+        const studentIds = Array.from(new Set(contacts.map((c) => c.student_id))).filter(
+          (x): x is string => Boolean(x)
+        );
+
+        let studentsMap = new Map<string, { first_name: string; last_name: string }>();
+        if (studentIds.length > 0) {
+          const { data: students, error: studentsErr } = await supabase
+            .from("students")
+            .select("id, first_name, last_name")
+            .in("id", studentIds);
+
+          if (studentsErr) throw studentsErr;
+          studentsMap = new Map(
+            (students ?? []).map((s) => [s.id, { first_name: s.first_name, last_name: s.last_name }])
+          );
+        }
+
+        const result: ContactItem[] = contacts.map((c) => ({
+          id: c.id,
+          subject: c.subject,
+          summary: c.summary,
+          occurred_at: c.occurred_at,
+          method: c.method,
+          category: c.category,
+          student: studentsMap.get(c.student_id) ?? null,
+        }));
+
+        if (mounted) setItems(result);
+      } catch {
+        // On any error, show an empty list rather than crashing the page
         if (mounted) setItems([]);
-        return;
       }
-
-      const studentIds = Array.from(new Set(contacts.map((c) => c.student_id)));
-      const { data: students } = await supabase
-        .from("students")
-        .select("id, first_name, last_name")
-        .in("id", studentIds);
-
-      const map = new Map(students?.map((s) => [s.id, s]) ?? []);
-      const result: ContactItem[] = contacts.map((c) => ({
-        id: c.id,
-        subject: c.subject,
-        summary: c.summary,
-        occurred_at: c.occurred_at,
-        method: c.method,
-        category: c.category,
-        student: map.get(c.student_id)
-          ? { first_name: map.get(c.student_id)!.first_name, last_name: map.get(c.student_id)!.last_name }
-          : null,
-      }));
-
-      if (mounted) setItems(result);
     })();
+
     return () => {
       mounted = false;
     };
@@ -95,7 +119,7 @@ export default function ContactsPage() {
                     {c.student ? `${c.student.last_name}, ${c.student.first_name}` : "Unknown student"}
                   </div>
                   <div className="text-slate-600">
-                    {new Date(c.occurred_at).toLocaleString()} · {c.method.replace("_", " ")}
+                    {new Date(c.occurred_at).toLocaleString()} · {c.method.replaceAll("_", " ")}
                     {c.category ? ` · ${c.category}` : ""}
                   </div>
                   {c.subject && <div className="text-slate-900 mt-1">{c.subject}</div>}

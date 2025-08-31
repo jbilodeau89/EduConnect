@@ -1,88 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { getSupabase } from "@/lib/supabaseClient";
 
 type Mode = "signin" | "signup";
 
 export default function HomePage() {
-  const router = useRouter();
-  const search = useSearchParams();
-
-  // allow ?mode=signup or ?mode=signin; default signin
-  const qpMode = (search.get("mode") as Mode) || "signin";
-  const next = search.get("next") || null;
-
-  const [mode, setMode] = useState<Mode>(qpMode);
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-
-  useEffect(() => {
-    // keep mode in sync if the query param changes
-    if (qpMode !== mode) setMode(qpMode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qpMode]);
-
-  const baseUrl = useMemo(() => {
-    if (typeof window !== "undefined") return window.location.origin;
-    return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  }, []);
+  const router = useRouter();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setInfo(null);
-
     if (!email || !password || (mode === "signup" && !fullName)) {
       setError("Please fill out all required fields.");
       return;
     }
-
     setSubmitting(true);
+
     try {
+      const supabase = getSupabase();
+
       if (mode === "signup") {
-        // Sign up; if email confirmations are ON, the confirmation link will land on /onboarding/subscribe
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${baseUrl}/onboarding/subscribe`,
-          },
-        });
+        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
 
-        const { user, session } = data;
-
-        // If confirmations are OFF, we have a session immediately
-        if (session && user) {
-          // create/update profile
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .upsert({ id: user.id, full_name: fullName });
+        const user = data.user;
+        if (user) {
+          const { error: profileError } = await supabase.from("profiles").upsert({
+            id: user.id,
+            full_name: fullName,
+          });
           if (profileError) throw profileError;
-
-          router.push("/onboarding/subscribe");
-          return;
         }
-
-        // If confirmations are ON, user must click the email link first
-        setInfo("Check your email to confirm your address. After confirming, you’ll be taken to secure checkout.");
-        return;
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
       }
-
-      // Sign in: honor ?next (used when we bounced them here to require auth), else dashboard
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) throw signInError;
-
-      router.push(next || "/dashboard");
+      router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
     } finally {
@@ -96,7 +57,9 @@ export default function HomePage() {
         <div className="mx-auto max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-semibold text-slate-900">EduContact</h1>
-            <p className="mt-2 text-slate-600 text-sm">A teacher-friendly way to log communications.</p>
+            <p className="mt-2 text-slate-600 text-sm">
+              A teacher-friendly way to log communications.
+            </p>
           </div>
 
           <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-6">
@@ -132,16 +95,13 @@ export default function HomePage() {
                 {error}
               </div>
             )}
-            {info && (
-              <div role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                {info}
-              </div>
-            )}
 
             <form onSubmit={onSubmit} className="space-y-4">
               {mode === "signup" && (
                 <div>
-                  <label htmlFor="full_name" className="block text-sm font-medium text-slate-700">Full Name</label>
+                  <label htmlFor="full_name" className="block text-sm font-medium text-slate-700">
+                    Full Name
+                  </label>
                   <input
                     id="full_name"
                     type="text"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 import NewStudentForm, { StudentRow } from "@/components/NewStudentForm";
 import BulkAddStudents from "@/components/BulkAddStudents";
 import Modal from "@/components/Modal";
@@ -13,18 +13,31 @@ export default function StudentsPage() {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const uid = sessionData.session?.user.id;
-      if (!uid) return;
-      const { data } = await supabase
-        .from("students")
-        .select("id, first_name, last_name, grade, homeroom, email")
-        .eq("owner_id", uid)
-        .order("last_name", { ascending: true });
 
-      if (mounted) setRows(data ?? []);
+    (async () => {
+      try {
+        const supabase = getSupabase();
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user.id;
+        if (!uid) {
+          if (mounted) setRows([]);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("students")
+          .select("id, first_name, last_name, grade, homeroom, email")
+          .eq("owner_id", uid)
+          .order("last_name", { ascending: true });
+
+        if (error) throw error;
+        if (mounted) setRows(data ?? []);
+      } catch {
+        if (mounted) setRows([]);
+      }
     })();
+
     return () => {
       mounted = false;
     };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 import { appChannel } from "@/lib/realtime";
 
 export type StudentRow = {
@@ -30,60 +30,73 @@ export default function NewStudentForm({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setOwnerId(data.session?.user.id ?? null);
-    });
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        setOwnerId(data.session?.user.id ?? null);
+      } catch {
+        setOwnerId(null);
+      }
+    })();
   }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!ownerId) return setError("Not authenticated.");
-    if (!firstName.trim() || !lastName.trim()) {
-      return setError("First and last name are required.");
+    if (!ownerId) {
+      setError("Not authenticated.");
+      return;
     }
-
-    setSaving(true);
-
-    const payload = {
-      owner_id: ownerId,
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      email: email.trim() || null,
-      grade: grade.trim() || null,
-      homeroom: homeroom.trim() || null,
-    };
-
-    const { data, error } = await supabase
-      .from("students")
-      .insert(payload)
-      .select("id, first_name, last_name, email, grade, homeroom")
-      .single();
-
-    setSaving(false);
-
-    if (error) {
-      setError(error.message);
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("First and last name are required.");
       return;
     }
 
-    // Broadcast to dashboard (increment Total Students)
-    appChannel.send({
-      type: "broadcast",
-      event: "student:created",
-      payload: { owner_id: ownerId, id: data!.id },
-    });
+    setSaving(true);
+    try {
+      const supabase = getSupabase();
 
-    // Optimistic UI to the page list
-    onCreated?.(data as StudentRow);
+      const payload = {
+        owner_id: ownerId,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim() ? email.trim() : null,
+        grade: grade.trim() ? grade.trim() : null,
+        homeroom: homeroom.trim() ? homeroom.trim() : null,
+      };
 
-    // Reset form
-    setFirst("");
-    setLast("");
-    setEmail("");
-    setGrade("");
-    setHomeroom("");
+      const { data, error: insErr } = await supabase
+        .from("students")
+        .insert(payload)
+        .select("id, first_name, last_name, email, grade, homeroom")
+        .single();
+
+      if (insErr) throw insErr;
+      if (!data) throw new Error("Insert failed");
+
+      // Broadcast to dashboard (increment Total Students)
+      appChannel.send({
+        type: "broadcast",
+        event: "student:created",
+        payload: { owner_id: ownerId, id: data.id },
+      });
+
+      // Optimistic UI to the page list
+      onCreated?.(data as StudentRow);
+
+      // Reset form
+      setFirst("");
+      setLast("");
+      setEmail("");
+      setGrade("");
+      setHomeroom("");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to add student.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

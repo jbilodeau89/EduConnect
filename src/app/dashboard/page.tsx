@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 import { appChannel } from "@/lib/realtime";
 
 type RecentItem = {
@@ -73,6 +73,8 @@ export default function DashboardPage() {
     let mounted = true;
 
     (async () => {
+      const supabase = getSupabase();
+
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user ?? null;
       if (!user) return;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 import { appChannel } from "@/lib/realtime";
 
 type Student = { id: string; first_name: string; last_name: string };
@@ -49,18 +49,25 @@ export default function NewContactForm({
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      const uid = data.session?.user.id ?? null;
-      setOwnerId(uid);
-      if (!uid) return;
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        const uid = data.session?.user.id ?? null;
+        setOwnerId(uid);
+        if (!uid) return;
 
-      const { data: rows } = await supabase
-        .from("students")
-        .select("id, first_name, last_name")
-        .eq("owner_id", uid)
-        .order("last_name", { ascending: true });
+        const { data: rows, error: qErr } = await supabase
+          .from("students")
+          .select("id, first_name, last_name")
+          .eq("owner_id", uid)
+          .order("last_name", { ascending: true });
 
-      setStudents(rows ?? []);
+        if (qErr) throw qErr;
+        setStudents(rows ?? []);
+      } catch (e) {
+        // Soft fail; leave list empty and show nothing rather than crash
+        setStudents([]);
+      }
     })();
   }, []);
 
@@ -73,68 +80,71 @@ export default function NewContactForm({
 
     setSaving(true);
 
-    const payload = {
-      owner_id: ownerId,
-      student_id: studentId,
-      method,
-      category,
-      subject: subject.trim() || null,
-      summary: summary.trim() || null,
-      occurred_at: new Date(occurredAt).toISOString(), // store UTC
-    };
+    try {
+      const supabase = getSupabase();
 
-    const { data, error } = await supabase
-      .from("contacts")
-      .insert(payload)
-      .select(
-        "id, subject, summary, occurred_at, created_at, method, category, student_id"
-      ) // include created_at so dashboard can sort by submission time
-      .single();
-
-    setSaving(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    const s = students.find((x) => x.id === data!.student_id) ?? null;
-
-    // 🔔 Broadcast to dashboard with created_at for correct ordering
-    appChannel.send({
-      type: "broadcast",
-      event: "contact:created",
-      payload: {
+      const payload = {
         owner_id: ownerId,
+        student_id: studentId,
+        method,
+        category,
+        subject: subject.trim() || null,
+        summary: summary.trim() || null,
+        occurred_at: new Date(occurredAt).toISOString(), // store UTC
+      };
+
+      const { data, error: insErr } = await supabase
+        .from("contacts")
+        .insert(payload)
+        .select(
+          "id, subject, summary, occurred_at, created_at, method, category, student_id"
+        ) // include created_at so dashboard can sort by submission time
+        .single();
+
+      if (insErr) throw insErr;
+
+      const s = students.find((x) => x.id === data!.student_id) ?? null;
+
+      // 🔔 Broadcast to dashboard with created_at for correct ordering
+      appChannel.send({
+        type: "broadcast",
+        event: "contact:created",
+        payload: {
+          owner_id: ownerId,
+          id: data!.id,
+          subject: data!.subject,
+          summary: data!.summary,
+          occurred_at: data!.occurred_at,
+          created_at: data!.created_at, // <-- key for sorting recent activity
+          method: data!.method,
+          category: data!.category,
+          student: s ? { first_name: s.first_name, last_name: s.last_name } : null,
+        },
+      });
+
+      // Optimistic UI for the contacts page list
+      onCreated?.({
         id: data!.id,
         subject: data!.subject,
         summary: data!.summary,
         occurred_at: data!.occurred_at,
-        created_at: data!.created_at, // <-- key for sorting recent activity
         method: data!.method,
         category: data!.category,
         student: s ? { first_name: s.first_name, last_name: s.last_name } : null,
-      },
-    });
+      });
 
-    // Optimistic UI for the contacts page list (that page can keep its own sort)
-    onCreated?.({
-      id: data!.id,
-      subject: data!.subject,
-      summary: data!.summary,
-      occurred_at: data!.occurred_at,
-      method: data!.method,
-      category: data!.category,
-      student: s ? { first_name: s.first_name, last_name: s.last_name } : null,
-    });
-
-    // Reset form
-    setStudentId("");
-    setMethod("email");
-    setCategory("academic");
-    setSubject("");
-    setSummary("");
-    setOccurredAt(localDateTimeInputValue(new Date()));
+      // Reset form
+      setStudentId("");
+      setMethod("email");
+      setCategory("academic");
+      setSubject("");
+      setSummary("");
+      setOccurredAt(localDateTimeInputValue(new Date()));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to log contact.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

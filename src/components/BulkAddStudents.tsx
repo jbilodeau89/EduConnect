@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 
 export type StudentRow = {
   id: string;
@@ -15,7 +15,6 @@ export type StudentRow = {
 type ParsedRow = Omit<StudentRow, "id">;
 
 const REQUIRED_HEADERS = ["first_name", "last_name"] as const;
-
 
 function normalizeHeader(h: string): string {
   const key = h.trim().toLowerCase();
@@ -118,6 +117,7 @@ export default function BulkAddStudents({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const supabase = getSupabase();
     supabase.auth.getSession().then(({ data }) => {
       setOwnerId(data.session?.user.id ?? null);
     });
@@ -172,6 +172,7 @@ Ben,Lee,,8,104
     }
     setSaving(true);
 
+    const supabase = getSupabase();
     const chunkSize = 200;
     const inserted: StudentRow[] = [];
 
