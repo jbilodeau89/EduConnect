@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    // Compute base URL from the actual request (works locally, preview, prod)
+    // Robust base URL from the request (works on localhost/preview/prod)
     const base = new URL(req.url).origin;
 
     const cookieStore = cookies();
@@ -19,8 +19,7 @@ export async function POST(req: Request) {
     const priceId = process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
     if (!priceId) return NextResponse.json({ error: "Missing STRIPE_PRICE_ID" }, { status: 500 });
 
-    const success_url = `${base}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`;
-    const cancel_url  = `${base}/dashboard/billing?canceled=1`;
+    const stripe = getStripe();
 
     // Reuse/create customer by email
     const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
@@ -28,6 +27,9 @@ export async function POST(req: Request) {
       email: user.email ?? undefined,
       metadata: { supabase_user_id: user.id },
     });
+
+    const success_url = `${base}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`;
+    const cancel_url  = `${base}/dashboard/billing?canceled=1`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -43,7 +45,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (err: unknown) {
-  const message = err instanceof Error ? err.message : String(err);
-  return NextResponse.json({ error: message }, { status: 500 });
-}
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

@@ -15,7 +15,7 @@ export type StudentRow = {
 type ParsedRow = Omit<StudentRow, "id">;
 
 const REQUIRED_HEADERS = ["first_name", "last_name"] as const;
-const OPTIONAL_HEADERS = ["email", "grade", "homeroom"] as const;
+
 
 function normalizeHeader(h: string): string {
   const key = h.trim().toLowerCase();
