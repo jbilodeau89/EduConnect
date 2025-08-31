@@ -48,8 +48,9 @@ export default function SubscribePage() {
           const text = await res.text();
           throw new Error(`Unexpected response: ${res.status} ${text.slice(0, 200)}`);
         }
-      } catch (e: any) {
-        if (!cancelled) setError(e.message ?? "Unable to start checkout");
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        if (!cancelled) setError(message || "Unable to start checkout");
       }
     })();
 

@@ -16,6 +16,49 @@ type RecentItem = {
   student: { first_name: string; last_name: string } | null;
 };
 
+// ---- helpers / type guards (no `any`) ----
+type RecordLike = Record<string, unknown>;
+const isObject = (v: unknown): v is RecordLike => typeof v === "object" && v !== null;
+
+const hasStr = (o: RecordLike, k: string): o is RecordLike & { [P in typeof k]: string } =>
+  typeof o[k] === "string";
+
+const isStudentName = (v: unknown): v is { first_name: string; last_name: string } => {
+  if (!isObject(v)) return false;
+  return hasStr(v, "first_name") && hasStr(v, "last_name");
+};
+
+type StudentCreatedPayload = { owner_id: string };
+const isStudentCreatedPayload = (v: unknown): v is StudentCreatedPayload => {
+  if (!isObject(v)) return false;
+  return hasStr(v, "owner_id");
+};
+
+type ContactCreatedPayload = {
+  id: string;
+  owner_id: string;
+  occurred_at: string;
+  created_at?: string;
+  method: string;
+  category?: string | null;
+  subject?: string | null;
+  summary?: string | null;
+  student?: { first_name: string; last_name: string } | null;
+};
+const isContactCreatedPayload = (v: unknown): v is ContactCreatedPayload => {
+  if (!isObject(v)) return false;
+  return hasStr(v, "id") && hasStr(v, "owner_id") && hasStr(v, "occurred_at") && hasStr(v, "method");
+};
+
+const startOfWeekMonday = (d: Date) => {
+  const now = new Date(d);
+  const day = now.getDay(); // 0=Sun
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(now.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+};
+
 export default function DashboardPage() {
   const [name, setName] = useState<string>("Teacher");
   const [uid, setUid] = useState<string | null>(null);
@@ -44,7 +87,7 @@ export default function DashboardPage() {
 
       const display =
         profile?.full_name ||
-        user.user_metadata?.full_name ||
+        (user.user_metadata as RecordLike | undefined)?.["full_name"]?.toString() ||
         user.email?.split("@")[0] ||
         "Teacher";
       if (mounted) setName(display);
@@ -56,12 +99,7 @@ export default function DashboardPage() {
       ]);
 
       // This week (Mon 00:00 local)
-      const now = new Date();
-      const day = now.getDay(); // 0=Sun
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(now.setDate(diff));
-      monday.setHours(0, 0, 0, 0);
-
+      const monday = startOfWeekMonday(new Date());
       const { count: weekCount } = await supabase
         .from("contacts")
         .select("*", { count: "exact", head: true })
@@ -116,42 +154,44 @@ export default function DashboardPage() {
     if (!uid) return;
 
     const sub = appChannel
-      .on("broadcast", { event: "student:created" }, (payload) => {
-        const ownerId = (payload.payload as any)?.owner_id;
-        if (ownerId !== uid) return;
+      .on("broadcast", { event: "student:created" }, (msg: { payload?: unknown }) => {
+        if (!isStudentCreatedPayload(msg.payload)) return;
+        if (msg.payload.owner_id !== uid) return;
         setTotalStudents((n) => n + 1);
       })
-      .on("broadcast", { event: "contact:created" }, (payload) => {
-        const p: any = payload.payload || {};
+      .on("broadcast", { event: "contact:created" }, (msg: { payload?: unknown }) => {
+        if (!isContactCreatedPayload(msg.payload)) return;
+        const p = msg.payload;
+
         if (p.owner_id !== uid) return;
 
         setTotalContacts((n) => n + 1);
 
         // bump week count if occurred_at is this week
-        try {
-          const occurred = new Date(p.occurred_at);
-          const now = new Date();
-          const day = now.getDay();
-          const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-          const monday = new Date(now.setDate(diff));
-          monday.setHours(0, 0, 0, 0);
-          if (occurred >= monday) setContactsThisWeek((n) => n + 1);
-        } catch {}
+        const occurred = new Date(p.occurred_at);
+        if (occurred >= startOfWeekMonday(new Date())) {
+          setContactsThisWeek((n) => n + 1);
+        }
 
         // Add to recent and keep latest 5 by created_at
+        const studentVal = isStudentName(p.student) ? p.student : null;
+        const createdAt = p.created_at ?? new Date().toISOString();
+
         setRecent((prev) => {
           const nextItem: RecentItem = {
             id: p.id,
             occurred_at: p.occurred_at,
-            created_at: p.created_at ?? new Date().toISOString(),
+            created_at: createdAt,
             method: p.method,
             category: p.category ?? null,
             subject: p.subject ?? null,
             summary: p.summary ?? null,
-            student: p.student ?? null,
+            student: studentVal,
           };
           const next = [nextItem, ...(prev ?? [])];
-          next.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+          next.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
           return next.slice(0, 5);
         });
       })

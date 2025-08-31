@@ -83,8 +83,8 @@ export default function HomePage() {
       if (signInError) throw signInError;
 
       router.push(next || "/dashboard");
-    } catch (err: any) {
-      setError(err?.message ?? "Authentication failed. Please try again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
     } finally {
       setSubmitting(false);
     }

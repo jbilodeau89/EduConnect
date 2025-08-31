@@ -16,12 +16,6 @@ type ParsedRow = Omit<StudentRow, "id">;
 
 const REQUIRED_HEADERS = ["first_name", "last_name"] as const;
 const OPTIONAL_HEADERS = ["email", "grade", "homeroom"] as const;
-const ACCEPTED_HEADERS = new Set([
-  ...REQUIRED_HEADERS,
-  ...OPTIONAL_HEADERS,
-  "first", "firstname", "first name",
-  "last", "lastname", "last name",
-]);
 
 function normalizeHeader(h: string): string {
   const key = h.trim().toLowerCase();
@@ -267,7 +261,6 @@ Ben,Lee,,8,104`}
         </div>
 
         <div className="mt-4 flex items-center gap-2">
-          {/* Preview is now automatic; keeping button for explicit action if you want */}
           <button
             type="button"
             onClick={() => {

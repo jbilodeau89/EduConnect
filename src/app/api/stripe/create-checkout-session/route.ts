@@ -42,8 +42,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (err: any) {
-    const message = err?.message || String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  } catch (err: unknown) {
+  const message = err instanceof Error ? err.message : String(err);
+  return NextResponse.json({ error: message }, { status: 500 });
+}
 }
