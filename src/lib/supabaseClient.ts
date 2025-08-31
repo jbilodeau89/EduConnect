@@ -1,13 +1,13 @@
 "use client";
 
-import { createClientComponentClient, type SupabaseClient } from "@supabase/auth-helpers-nextjs";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-// Keep the type coming from the same package as the factory to avoid mismatches
-let client: SupabaseClient | null = null;
+// Local singleton; keep it untyped to avoid cross-package type drift
+let client: unknown = null;
 
-/** Lazily create the browser Supabase client only when first used (avoids build-time errors). */
-export function getSupabase(): SupabaseClient {
-  if (client) return client;
+/** Lazily create the browser Supabase client only when first used. */
+export function getSupabase() {
+  if (client) return client as ReturnType<typeof createClientComponentClient>;
   client = createClientComponentClient();
-  return client;
+  return client as ReturnType<typeof createClientComponentClient>;
 }

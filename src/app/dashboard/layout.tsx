@@ -1,44 +1,50 @@
 "use client";
 
-import Sidebar from "@/components/Sidebar";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Sidebar from "@/components/Sidebar";
+import { getSupabase } from "@/lib/supabaseClient";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [userName, setUserName] = useState<string | undefined>(undefined);
-  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const router = useRouter();
+  const pathname = usePathname();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
     (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
+      const supabase = getSupabase();
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!active) return;
+
       if (!session) {
-        router.push("/");
+        // bounce to sign-in, then come back
+        const next = encodeURIComponent(pathname || "/dashboard");
+        router.replace(`/?mode=signin&next=${next}`);
         return;
       }
-      const { user } = session;
-      if (mounted) {
-        setUserEmail(user?.email ?? undefined);
-        const fallbackName =
-          user?.user_metadata?.full_name || (user?.email?.split("@")[0] ?? "Teacher");
-        setUserName(fallbackName);
-      }
+
+      setChecking(false);
     })();
-    return () => { mounted = false; };
-  }, [router]);
+    return () => {
+      active = false;
+    };
+  }, [router, pathname]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-600">
+        Checking your session…
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="lg:flex lg:gap-6">
-          <Sidebar userName={userName} userEmail={userEmail} />
-          <main className="flex-1 mt-6 lg:mt-0">
-            {children}
-          </main>
-        </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="flex">
+        <Sidebar />
+        <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
   );
