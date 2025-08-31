@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabaseClient";
 import { appChannel } from "@/lib/realtime";
 
-type Student = { id: string; first_name: string; last_name: string };
+type StudentRow = { id: string; first_name: string; last_name: string };
 
 export type ContactItem = {
   id: string;
@@ -27,13 +27,25 @@ function localDateTimeInputValue(d: Date) {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
+// Shape of the row we SELECT back after insert
+type ContactInsertResult = {
+  id: string;
+  subject: string | null;
+  summary: string | null;
+  occurred_at: string;
+  created_at: string;
+  method: string;
+  category: string | null;
+  student_id: string;
+};
+
 export default function NewContactForm({
   onCreated,
 }: {
   onCreated?: (item: ContactItem) => void;
 }) {
   const [ownerId, setOwnerId] = useState<string | null>(null);
-  const [students, setStudents] = useState<Student[]>([]);
+  const [students, setStudents] = useState<StudentRow[]>([]);
 
   const [studentId, setStudentId] = useState("");
   const [method, setMethod] = useState("email");
@@ -47,6 +59,7 @@ export default function NewContactForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load session + students
   useEffect(() => {
     (async () => {
       try {
@@ -54,7 +67,10 @@ export default function NewContactForm({
         const { data } = await supabase.auth.getSession();
         const uid = data.session?.user.id ?? null;
         setOwnerId(uid);
-        if (!uid) return;
+        if (!uid) {
+          setStudents([]);
+          return;
+        }
 
         const { data: rows, error: qErr } = await supabase
           .from("students")
@@ -63,9 +79,10 @@ export default function NewContactForm({
           .order("last_name", { ascending: true });
 
         if (qErr) throw qErr;
-        setStudents(rows ?? []);
-      } catch (e) {
-        // Soft fail; leave list empty and show nothing rather than crash
+
+        const studentsRows = (rows ?? []) as unknown as StudentRow[];
+        setStudents(studentsRows);
+      } catch {
         setStudents([]);
       }
     })();
@@ -75,11 +92,16 @@ export default function NewContactForm({
     e.preventDefault();
     setError(null);
 
-    if (!ownerId) return setError("Not authenticated.");
-    if (!studentId) return setError("Please choose a student.");
+    if (!ownerId) {
+      setError("Not authenticated.");
+      return;
+    }
+    if (!studentId) {
+      setError("Please choose a student.");
+      return;
+    }
 
     setSaving(true);
-
     try {
       const supabase = getSupabase();
 
@@ -93,17 +115,21 @@ export default function NewContactForm({
         occurred_at: new Date(occurredAt).toISOString(), // store UTC
       };
 
-      const { data, error: insErr } = await supabase
+            const { data, error: insErr } = await supabase
         .from("contacts")
-        .insert(payload)
+        // TS: without generated types, insert expects `never`. Cast just for this call.
+        .insert(payload as never)
         .select(
           "id, subject, summary, occurred_at, created_at, method, category, student_id"
-        ) // include created_at so dashboard can sort by submission time
+        )
         .single();
 
       if (insErr) throw insErr;
+      if (!data) throw new Error("Insert failed");
 
-      const s = students.find((x) => x.id === data!.student_id) ?? null;
+      const created = data as unknown as ContactInsertResult;
+
+      const s = students.find((x) => x.id === created.student_id) ?? null;
 
       // 🔔 Broadcast to dashboard with created_at for correct ordering
       appChannel.send({
@@ -111,25 +137,25 @@ export default function NewContactForm({
         event: "contact:created",
         payload: {
           owner_id: ownerId,
-          id: data!.id,
-          subject: data!.subject,
-          summary: data!.summary,
-          occurred_at: data!.occurred_at,
-          created_at: data!.created_at, // <-- key for sorting recent activity
-          method: data!.method,
-          category: data!.category,
+          id: created.id,
+          subject: created.subject,
+          summary: created.summary,
+          occurred_at: created.occurred_at,
+          created_at: created.created_at, // for sorting recent activity
+          method: created.method,
+          category: created.category,
           student: s ? { first_name: s.first_name, last_name: s.last_name } : null,
         },
       });
 
       // Optimistic UI for the contacts page list
       onCreated?.({
-        id: data!.id,
-        subject: data!.subject,
-        summary: data!.summary,
-        occurred_at: data!.occurred_at,
-        method: data!.method,
-        category: data!.category,
+        id: created.id,
+        subject: created.subject,
+        summary: created.summary,
+        occurred_at: created.occurred_at,
+        method: created.method,
+        category: created.category,
         student: s ? { first_name: s.first_name, last_name: s.last_name } : null,
       });
 

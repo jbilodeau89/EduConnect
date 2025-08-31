@@ -5,6 +5,20 @@ import { getSupabase } from "@/lib/supabaseClient";
 import NewContactForm, { ContactItem } from "@/components/NewContactForm";
 import Modal from "@/components/Modal";
 
+// Narrow, local row types (only the columns we select)
+type ContactRow = {
+  id: string;
+  subject: string | null;
+  summary: string | null;
+  occurred_at: string;
+  created_at: string;
+  method: string;
+  category: string | null;
+  student_id: string | null;
+};
+
+type StudentRow = { id: string; first_name: string; last_name: string };
+
 export default function ContactsPage() {
   const [items, setItems] = useState<ContactItem[] | null>(null);
   const [openNew, setOpenNew] = useState(false);
@@ -16,6 +30,7 @@ export default function ContactsPage() {
       try {
         const supabase = getSupabase();
 
+        // session
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData.session?.user.id;
         if (!uid) {
@@ -23,8 +38,8 @@ export default function ContactsPage() {
           return;
         }
 
-        // 👉 Order by created_at so newest logged entry is first
-        const { data: contacts, error: contactsErr } = await supabase
+        // contacts (newest first)
+        const { data: contactsData, error: contactsErr } = await supabase
           .from("contacts")
           .select(
             "id, subject, summary, occurred_at, created_at, method, category, student_id"
@@ -35,28 +50,37 @@ export default function ContactsPage() {
 
         if (contactsErr) throw contactsErr;
 
-        if (!contacts || contacts.length === 0) {
+        const contacts: ContactRow[] = (contactsData ?? []) as unknown as ContactRow[];
+        if (contacts.length === 0) {
           if (mounted) setItems([]);
           return;
         }
 
-        const studentIds = Array.from(new Set(contacts.map((c) => c.student_id))).filter(
-          (x): x is string => Boolean(x)
+        // student lookup
+        const studentIds = Array.from(
+          new Set(
+            contacts
+              .map((c) => c.student_id)
+              .filter((id): id is string => typeof id === "string" && id.length > 0)
+          )
         );
 
-        let studentsMap = new Map<string, { first_name: string; last_name: string }>();
+        let studentMap = new Map<string, { first_name: string; last_name: string }>();
         if (studentIds.length > 0) {
-          const { data: students, error: studentsErr } = await supabase
+          const { data: studentsData, error: studentsErr } = await supabase
             .from("students")
             .select("id, first_name, last_name")
             .in("id", studentIds);
 
           if (studentsErr) throw studentsErr;
-          studentsMap = new Map(
-            (students ?? []).map((s) => [s.id, { first_name: s.first_name, last_name: s.last_name }])
+
+          const students: StudentRow[] = (studentsData ?? []) as unknown as StudentRow[];
+          studentMap = new Map(
+            students.map((s) => [s.id, { first_name: s.first_name, last_name: s.last_name }])
           );
         }
 
+        // map to UI items
         const result: ContactItem[] = contacts.map((c) => ({
           id: c.id,
           subject: c.subject,
@@ -64,12 +88,11 @@ export default function ContactsPage() {
           occurred_at: c.occurred_at,
           method: c.method,
           category: c.category,
-          student: studentsMap.get(c.student_id) ?? null,
+          student: c.student_id ? studentMap.get(c.student_id) ?? null : null,
         }));
 
         if (mounted) setItems(result);
       } catch {
-        // On any error, show an empty list rather than crashing the page
         if (mounted) setItems([]);
       }
     })();
@@ -80,7 +103,7 @@ export default function ContactsPage() {
   }, []);
 
   const handleCreated = (item: ContactItem) => {
-    // Prepend new item so it shows immediately at the top
+    // prepend new item
     setItems((prev) => [item, ...(prev ?? [])]);
     setOpenNew(false);
   };
@@ -90,9 +113,7 @@ export default function ContactsPage() {
       <header className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-slate-900">Contact Logs</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Log communications and keep a clear record.
-          </p>
+          <p className="mt-1 text-sm text-slate-600">Log communications and keep a clear record.</p>
         </div>
         <button
           onClick={() => setOpenNew(true)}
@@ -119,7 +140,7 @@ export default function ContactsPage() {
                     {c.student ? `${c.student.last_name}, ${c.student.first_name}` : "Unknown student"}
                   </div>
                   <div className="text-slate-600">
-                    {new Date(c.occurred_at).toLocaleString()} · {c.method.replaceAll("_", " ")}
+                    {new Date(c.occurred_at).toLocaleString()} · {c.method.replace(/_/g, " ")}
                     {c.category ? ` · ${c.category}` : ""}
                   </div>
                   {c.subject && <div className="text-slate-900 mt-1">{c.subject}</div>}
@@ -131,7 +152,6 @@ export default function ContactsPage() {
         )}
       </section>
 
-      {/* New Contact Modal */}
       <Modal open={openNew} onClose={() => setOpenNew(false)} title="Log a Contact">
         <NewContactForm onCreated={handleCreated} />
       </Modal>

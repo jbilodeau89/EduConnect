@@ -16,39 +16,18 @@ type RecentItem = {
   student: { first_name: string; last_name: string } | null;
 };
 
-// ---- helpers / type guards (no `any`) ----
-type RecordLike = Record<string, unknown>;
-const isObject = (v: unknown): v is RecordLike => typeof v === "object" && v !== null;
-
-const hasStr = (o: RecordLike, k: string): o is RecordLike & { [P in typeof k]: string } =>
-  typeof o[k] === "string";
-
-const isStudentName = (v: unknown): v is { first_name: string; last_name: string } => {
-  if (!isObject(v)) return false;
-  return hasStr(v, "first_name") && hasStr(v, "last_name");
-};
-
-type StudentCreatedPayload = { owner_id: string };
-const isStudentCreatedPayload = (v: unknown): v is StudentCreatedPayload => {
-  if (!isObject(v)) return false;
-  return hasStr(v, "owner_id");
-};
-
-type ContactCreatedPayload = {
+// Narrow local row types to match selects
+type ContactRow = {
   id: string;
-  owner_id: string;
+  subject: string | null;
+  summary: string | null;
   occurred_at: string;
-  created_at?: string;
+  created_at: string;
   method: string;
-  category?: string | null;
-  subject?: string | null;
-  summary?: string | null;
-  student?: { first_name: string; last_name: string } | null;
+  category: string | null;
+  student_id: string | null;
 };
-const isContactCreatedPayload = (v: unknown): v is ContactCreatedPayload => {
-  if (!isObject(v)) return false;
-  return hasStr(v, "id") && hasStr(v, "owner_id") && hasStr(v, "occurred_at") && hasStr(v, "method");
-};
+type StudentRow = { id: string; first_name: string; last_name: string };
 
 const startOfWeekMonday = (d: Date) => {
   const now = new Date(d);
@@ -73,77 +52,103 @@ export default function DashboardPage() {
     let mounted = true;
 
     (async () => {
-      const supabase = getSupabase();
+      try {
+        const supabase = getSupabase();
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user ?? null;
-      if (!user) return;
-      if (mounted) setUid(user.id);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
+          if (mounted) {
+            setUid(null);
+            setRecent([]);
+          }
+          return;
+        }
+        if (mounted) setUid(user.id);
 
-      // Profile name
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .maybeSingle();
+        // Profile name (fallback to email local-part)
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
 
-      const display =
-        profile?.full_name ||
-        (user.user_metadata as RecordLike | undefined)?.["full_name"]?.toString() ||
-        user.email?.split("@")[0] ||
-        "Teacher";
-      if (mounted) setName(display);
+        const display =
+          (profile as { full_name?: string } | null)?.full_name ||
+          (user.email ? user.email.split("@")[0] : null) ||
+          "Teacher";
+        if (mounted) setName(display);
 
-      // Counts
-      const [{ count: studentsCount }, { count: contactsCount }] = await Promise.all([
-        supabase.from("students").select("*", { count: "exact", head: true }).eq("owner_id", user.id),
-        supabase.from("contacts").select("*", { count: "exact", head: true }).eq("owner_id", user.id),
-      ]);
+        // Counts in parallel
+        const [{ count: studentsCount }, { count: contactsCount }] = await Promise.all([
+          supabase.from("students").select("*", { count: "exact", head: true }).eq("owner_id", user.id),
+          supabase.from("contacts").select("*", { count: "exact", head: true }).eq("owner_id", user.id),
+        ]);
 
-      // This week (Mon 00:00 local)
-      const monday = startOfWeekMonday(new Date());
-      const { count: weekCount } = await supabase
-        .from("contacts")
-        .select("*", { count: "exact", head: true })
-        .eq("owner_id", user.id)
-        .gte("occurred_at", monday.toISOString());
+        // This week (Mon 00:00 local)
+        const monday = startOfWeekMonday(new Date());
+        const { count: weekCount } = await supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true })
+          .eq("owner_id", user.id)
+          .gte("occurred_at", monday.toISOString());
 
-      // Recent activity: sort by created_at (submission time)
-      const { data: contacts } = await supabase
-        .from("contacts")
-        .select("id, subject, summary, occurred_at, created_at, method, category, student_id")
-        .eq("owner_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+        // Recent activity: sort by created_at (submission time)
+        const { data: contactsData } = await supabase
+          .from("contacts")
+          .select("id, subject, summary, occurred_at, created_at, method, category, student_id")
+          .eq("owner_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5);
 
-      let recentList: RecentItem[] = [];
-      if (contacts && contacts.length) {
-        const studentIds = Array.from(new Set(contacts.map((c) => c.student_id)));
-        const { data: students } = await supabase
-          .from("students")
-          .select("id, first_name, last_name")
-          .in("id", studentIds);
+        const contacts: ContactRow[] = (contactsData ?? []) as unknown as ContactRow[];
 
-        const map = new Map(students?.map((s) => [s.id, s]) ?? []);
-        recentList = contacts.map((c) => ({
-          id: c.id,
-          subject: c.subject,
-          summary: c.summary,
-          occurred_at: c.occurred_at,
-          created_at: c.created_at,
-          method: c.method,
-          category: c.category,
-          student: map.get(c.student_id)
-            ? { first_name: map.get(c.student_id)!.first_name, last_name: map.get(c.student_id)!.last_name }
-            : null,
-        }));
+        let recentList: RecentItem[] = [];
+        if (contacts.length) {
+          const studentIds = Array.from(
+            new Set(
+              contacts
+                .map((c) => c.student_id)
+                .filter((id): id is string => typeof id === "string" && id.length > 0)
+            )
+          );
+
+          let map = new Map<string, { first_name: string; last_name: string }>();
+          if (studentIds.length > 0) {
+            const { data: studentsData } = await supabase
+              .from("students")
+              .select("id, first_name, last_name")
+              .in("id", studentIds);
+
+            const students: StudentRow[] = (studentsData ?? []) as unknown as StudentRow[];
+            map = new Map(students.map((s) => [s.id, { first_name: s.first_name, last_name: s.last_name }]));
+          }
+
+          recentList = contacts.map((c) => ({
+            id: c.id,
+            subject: c.subject,
+            summary: c.summary,
+            occurred_at: c.occurred_at,
+            created_at: c.created_at,
+            method: c.method,
+            category: c.category,
+            student: c.student_id ? map.get(c.student_id) ?? null : null,
+          }));
+        }
+
+        if (!mounted) return;
+        setTotalStudents(studentsCount ?? 0);
+        setTotalContacts(contactsCount ?? 0);
+        setContactsThisWeek(weekCount ?? 0);
+        setRecent(recentList);
+      } catch {
+        if (mounted) {
+          setTotalStudents(0);
+          setTotalContacts(0);
+          setContactsThisWeek(0);
+          setRecent([]);
+        }
       }
-
-      if (!mounted) return;
-      setTotalStudents(studentsCount ?? 0);
-      setTotalContacts(contactsCount ?? 0);
-      setContactsThisWeek(weekCount ?? 0);
-      setRecent(recentList);
     })();
 
     return () => {
@@ -157,43 +162,54 @@ export default function DashboardPage() {
 
     const sub = appChannel
       .on("broadcast", { event: "student:created" }, (msg: { payload?: unknown }) => {
-        if (!isStudentCreatedPayload(msg.payload)) return;
-        if (msg.payload.owner_id !== uid) return;
+        const p = msg?.payload as { owner_id?: string } | undefined;
+        if (!p || p.owner_id !== uid) return;
         setTotalStudents((n) => n + 1);
       })
       .on("broadcast", { event: "contact:created" }, (msg: { payload?: unknown }) => {
-        if (!isContactCreatedPayload(msg.payload)) return;
-        const p = msg.payload;
+        const p = msg?.payload as {
+          id?: string;
+          owner_id?: string;
+          occurred_at?: string;
+          created_at?: string;
+          method?: string;
+          category?: string | null;
+          subject?: string | null;
+          summary?: string | null;
+          student?: { first_name: string; last_name: string } | null;
+        } | undefined;
 
-        if (p.owner_id !== uid) return;
+        if (!p || p.owner_id !== uid || !p.id || !p.occurred_at || !p.method) return;
 
         setTotalContacts((n) => n + 1);
 
         // bump week count if occurred_at is this week
-        const occurred = new Date(p.occurred_at);
-        if (occurred >= startOfWeekMonday(new Date())) {
-          setContactsThisWeek((n) => n + 1);
+        try {
+          const occurred = new Date(p.occurred_at);
+          if (occurred >= startOfWeekMonday(new Date())) {
+            setContactsThisWeek((n) => n + 1);
+          }
+        } catch {
+          /* ignore parse issues */
         }
 
         // Add to recent and keep latest 5 by created_at
-        const studentVal = isStudentName(p.student) ? p.student : null;
         const createdAt = p.created_at ?? new Date().toISOString();
+        const studentVal = p.student && p.student.first_name && p.student.last_name ? p.student : null;
 
         setRecent((prev) => {
           const nextItem: RecentItem = {
-            id: p.id,
-            occurred_at: p.occurred_at,
+            id: p.id!,
+            occurred_at: p.occurred_at!,
             created_at: createdAt,
-            method: p.method,
+            method: p.method!,
             category: p.category ?? null,
             subject: p.subject ?? null,
             summary: p.summary ?? null,
             student: studentVal,
           };
           const next = [nextItem, ...(prev ?? [])];
-          next.sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          next.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           return next.slice(0, 5);
         });
       })
@@ -208,7 +224,9 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-3xl font-semibold text-slate-900">Welcome, {name}</h1>
-        <p className="mt-1 text-sm text-slate-600">Here’s a quick snapshot of your classroom communications.</p>
+        <p className="mt-1 text-sm text-slate-600">
+          Here’s a quick snapshot of your classroom communications.
+        </p>
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -241,7 +259,9 @@ export default function DashboardPage() {
           <div className="mt-6 text-sm text-slate-600">Loading…</div>
         ) : recent.length === 0 ? (
           <div className="mt-6 rounded-lg border border-dashed border-slate-200 p-8 text-center">
-            <p className="text-sm text-slate-600">No contact logs yet. Create your first one to see activity here.</p>
+            <p className="text-sm text-slate-600">
+              No contact logs yet. Create your first one to see activity here.
+            </p>
           </div>
         ) : (
           <ul className="mt-4 divide-y divide-slate-200">
@@ -252,7 +272,7 @@ export default function DashboardPage() {
                     {c.student ? `${c.student.last_name}, ${c.student.first_name}` : "Unknown student"}
                   </div>
                   <div className="text-slate-600">
-                    {new Date(c.occurred_at).toLocaleString()} · {c.method.replace("_", " ")}
+                    {new Date(c.occurred_at).toLocaleString()} · {c.method.replace(/_/g, " ")}
                     {c.category ? ` · ${c.category}` : ""}
                   </div>
                   {c.subject && <div className="text-slate-900 mt-1">{c.subject}</div>}

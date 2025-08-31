@@ -13,8 +13,17 @@ export type StudentRow = {
 };
 
 type ParsedRow = Omit<StudentRow, "id">;
-
 const REQUIRED_HEADERS = ["first_name", "last_name"] as const;
+
+// Insert payload shape (what we send to Supabase)
+type StudentInsertRow = {
+  owner_id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  grade: string | null;
+  homeroom: string | null;
+};
 
 function normalizeHeader(h: string): string {
   const key = h.trim().toLowerCase();
@@ -177,7 +186,7 @@ Ben,Lee,,8,104
     const inserted: StudentRow[] = [];
 
     for (let i = 0; i < parsed.length; i += chunkSize) {
-      const chunk = parsed.slice(i, i + chunkSize).map((r) => ({
+      const chunkPayload: StudentInsertRow[] = parsed.slice(i, i + chunkSize).map((r) => ({
         owner_id: ownerId,
         first_name: r.first_name,
         last_name: r.last_name,
@@ -188,15 +197,20 @@ Ben,Lee,,8,104
 
       const { data, error } = await supabase
         .from("students")
-        .insert(chunk)
+        // Without generated DB types, Supabase generics default to `never`. Cast only here.
+        .insert(chunkPayload as never)
         .select("id, first_name, last_name, email, grade, homeroom");
 
       if (error) {
         setSaving(false);
-        setSaveError(`Insert failed near rows ${i + 1}-${Math.min(i + chunkSize, parsed.length)}: ${error.message}`);
+        setSaveError(
+          `Insert failed near rows ${i + 1}-${Math.min(i + chunkSize, parsed.length)}: ${error.message}`
+        );
         return;
       }
-      inserted.push(...(data ?? []));
+
+      const returned = (data ?? []) as unknown as StudentRow[];
+      inserted.push(...returned);
     }
 
     setSaving(false);
@@ -269,7 +283,7 @@ Ben,Lee,,8,104`}
               setParsed(errors.length ? null : rows);
               setParseErrors(errors);
             }}
-            className="inline-flex items-center rounded-lg bg-slate-100 px-4 py-2 text-slate-800 text-sm font-medium hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+            className="inline-flex items-center rounded-lg bg-slate-100 px-4 py-2 text-slate-800 text-sm font-medium hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
           >
             Re-preview
           </button>

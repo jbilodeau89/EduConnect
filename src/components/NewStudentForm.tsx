@@ -13,6 +13,16 @@ export type StudentRow = {
   email: string | null;
 };
 
+// Insert payload we send to Supabase
+type StudentInsertRow = {
+  owner_id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  grade: string | null;
+  homeroom: string | null;
+};
+
 export default function NewStudentForm({
   onCreated,
 }: {
@@ -30,15 +40,10 @@ export default function NewStudentForm({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const supabase = getSupabase();
-        const { data } = await supabase.auth.getSession();
-        setOwnerId(data.session?.user.id ?? null);
-      } catch {
-        setOwnerId(null);
-      }
-    })();
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(({ data }) => {
+      setOwnerId(data.session?.user.id ?? null);
+    });
   }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -58,33 +63,36 @@ export default function NewStudentForm({
     try {
       const supabase = getSupabase();
 
-      const payload = {
+      const payload: StudentInsertRow = {
         owner_id: ownerId,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        email: email.trim() ? email.trim() : null,
-        grade: grade.trim() ? grade.trim() : null,
-        homeroom: homeroom.trim() ? homeroom.trim() : null,
+        email: email.trim() || null,
+        grade: grade.trim() || null,
+        homeroom: homeroom.trim() || null,
       };
 
       const { data, error: insErr } = await supabase
         .from("students")
-        .insert(payload)
+        // Without generated DB types, Supabase generics default to `never`. Cast only here.
+        .insert(payload as never)
         .select("id, first_name, last_name, email, grade, homeroom")
         .single();
 
       if (insErr) throw insErr;
       if (!data) throw new Error("Insert failed");
 
+      const row = data as unknown as StudentRow;
+
       // Broadcast to dashboard (increment Total Students)
       appChannel.send({
         type: "broadcast",
         event: "student:created",
-        payload: { owner_id: ownerId, id: data.id },
+        payload: { owner_id: ownerId, id: row.id },
       });
 
       // Optimistic UI to the page list
-      onCreated?.(data as StudentRow);
+      onCreated?.(row);
 
       // Reset form
       setFirst("");

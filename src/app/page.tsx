@@ -18,32 +18,43 @@ export default function HomePage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
     if (!email || !password || (mode === "signup" && !fullName)) {
       setError("Please fill out all required fields.");
       return;
     }
-    setSubmitting(true);
 
+    setSubmitting(true);
     try {
       const supabase = getSupabase();
 
       if (mode === "signup") {
-        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
         if (signUpError) throw signUpError;
 
         const user = data.user;
         if (user) {
-          const { error: profileError } = await supabase.from("profiles").upsert({
-            id: user.id,
-            full_name: fullName,
-          });
+          // Cast to satisfy TS when no generated DB types are present
+          const upsertRow = { id: user.id, full_name: fullName };
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .upsert(upsertRow as never);
           if (profileError) throw profileError;
         }
+
+        // Send new signups to subscribe
+        router.push("/onboarding/subscribe");
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (signInError) throw signInError;
+        router.push("/dashboard");
       }
-      router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
     } finally {
@@ -91,7 +102,10 @@ export default function HomePage() {
             </div>
 
             {error && (
-              <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <div
+                role="alert"
+                className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+              >
                 {error}
               </div>
             )}
@@ -115,7 +129,9 @@ export default function HomePage() {
               )}
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-700">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+                  Email
+                </label>
                 <input
                   id="email"
                   type="email"
@@ -129,7 +145,9 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                  Password
+                </label>
                 <input
                   id="password"
                   type="password"
