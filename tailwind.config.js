@@ -1,11 +1,10 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
-  darkMode: ["class"],
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: "class",
   content: [
     "./src/app/**/*.{ts,tsx}",
     "./src/components/**/*.{ts,tsx}",
-    "./src/lib/**/*.{ts,tsx}"
+    "./src/lib/**/*.{ts,tsx}",
   ],
   theme: {
     container: { center: true, padding: "1rem" },
@@ -39,4 +38,3 @@ const config: Config = {
   },
   plugins: [require("@tailwindcss/forms")],
 };
-export default config;
