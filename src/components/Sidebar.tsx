@@ -2,58 +2,49 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Users,
+  MessageSquare,
+  CreditCard,
+  Settings,
+} from "lucide-react";
 
-type NavItem = { href: string; label: string };
+type Props = { collapsed?: boolean };
 
-const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/dashboard/students", label: "Students" },
-  { href: "/dashboard/contacts", label: "Contacts" },
-  { href: "/dashboard/settings", label: "Settings" },
+const NAV = [
+  { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/dashboard/students", label: "Students", Icon: Users },
+  { href: "/dashboard/contacts", label: "Contacts", Icon: MessageSquare },
+  { href: "/dashboard/billing", label: "Billing", Icon: CreditCard },
+  { href: "/dashboard/settings", label: "Settings", Icon: Settings },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false }: Props) {
   const pathname = usePathname();
 
   return (
-    <aside className="h-full w-full sm:w-64 shrink-0">
-      <div className="rounded-2xl overflow-hidden ring-1 ring-slate-200 bg-white shadow-sm">
-        {/* Brand bar */}
-        <div className="bg-brand text-white px-5 py-4">
-          <div className="text-base font-semibold tracking-tight">EduContact</div>
-          <div className="text-[11px] opacity-85">Persian Plum / Ivory Quartz</div>
-        </div>
-
-        {/* Nav */}
-        <nav className="p-3">
-          <ul className="space-y-1 list-none">
-            {NAV.map((item) => {
-              const active =
-                pathname === item.href ||
-                (item.href !== "/dashboard" && pathname?.startsWith(item.href));
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={
-                      active
-                        ? "flex items-center justify-between rounded-lg bg-ivory text-brand-800 ring-1 ring-slate-200 px-3 py-2 text-sm font-medium"
-                        : "flex items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    }
-                  >
-                    <span>{item.label}</span>
-                    {active && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 ring-1 ring-brand-100">
-                        active
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </div>
-    </aside>
+    <nav
+      className={`h-full rounded-2xl border border-black/10 bg-white p-2 ${
+        collapsed ? "w-[68px]" : "w-64"
+      } transition-[width]`}
+    >
+      <ul className="space-y-1">
+        {NAV.map(({ href, label, Icon }) => {
+          const active = pathname === href || pathname?.startsWith(href + "/");
+          const base =
+            "flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+          const activeCls = active ? "bg-brand/10 text-brand-900" : "text-slate-700";
+          return (
+            <li key={href}>
+              <Link href={href} title={label} className={`${base} ${activeCls}`}>
+                <Icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span className="truncate">{label}</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
