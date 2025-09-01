@@ -1,75 +1,118 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+
+/** Prevent static prerendering for this page (it depends on client-only URL params). */
+export const dynamic = "force-dynamic";
 
 export default function BillingPage() {
-  const [loading, setLoading] = useState(false);
-  const search = useSearchParams();
-  const router = useRouter();
+  return (
+    <Suspense fallback={<div className="p-6">Loading billing…</div>}>
+      <BillingClient />
+    </Suspense>
+  );
+}
 
-  const success = search.get("success") === "1";
-  const canceled = search.get("canceled") === "1";
+function BillingClient() {
+  const sp = useSearchParams();
+  const success = sp.get("success");
+  const canceled = sp.get("canceled");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  // Clean query params after showing the banner
-  useEffect(() => {
-    if (success || canceled) {
-      const t = setTimeout(() => {
-        router.replace("/dashboard/billing");
-      }, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [success, canceled, router]);
-
-  async function openPortal() {
-    setLoading(true);
+  const openPortal = async () => {
+    setErr(null);
+    setBusy(true);
     try {
       const res = await fetch("/api/stripe/create-portal-session", { method: "POST" });
-      const { url, error } = await res.json();
-      if (error) throw new Error(error);
+      if (!res.ok) throw new Error(`Portal HTTP ${res.status}`);
+      const { url } = (await res.json()) as { url?: string };
+      if (!url) throw new Error("No portal URL returned");
       window.location.href = url;
     } catch (e) {
-      alert("Could not open billing portal.");
-      console.error(e);
-    } finally {
-      setLoading(false);
+      setErr(e instanceof Error ? e.message : "Failed to open billing portal");
+      setBusy(false);
     }
-  }
+  };
+
+  const goSubscribe = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", { method: "POST" });
+      if (!res.ok) throw new Error(`Checkout HTTP ${res.status}`);
+      const { url } = (await res.json()) as { url?: string };
+      if (!url) throw new Error("No checkout URL returned");
+      window.location.href = url;
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to start checkout");
+      setBusy(false);
+    }
+  };
 
   return (
-    <div className="max-w-xl space-y-6">
-      <h1 className="text-xl md:text-2xl font-semibold">Billing</h1>
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-2xl sm:text-3xl font-semibold">Billing</h1>
+        <p className="mt-1 text-sm muted">
+          Manage your EduContact subscription and invoices.
+        </p>
+      </header>
 
-      {(success || canceled) && (
-        <div
-          role="status"
-          className={`rounded-lg p-3 text-sm ${
-            success
-              ? "border border-green-200 bg-green-50 text-green-900"
-              : "border border-slate-200 bg-slate-50 text-slate-800"
-          }`}
-        >
-          {success ? "Payment successful. Thanks!" : "Checkout canceled. You weren’t charged."}
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-header">
-          <div className="text-base font-semibold">EduContact — $1/month</div>
-        </div>
-        <div className="card-body">
-          <p className="text-sm text-slate-600">
-            Manage your subscription, update your card, or cancel any time.
-          </p>
-          <button
-            onClick={openPortal}
-            disabled={loading}
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+      <section className="card p-6 space-y-4">
+        {(success || canceled) && (
+          <div
+            role="alert"
+            className={`rounded-lg border p-3 text-sm ${
+              success
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-red-200 bg-red-50 text-red-900"
+            }`}
           >
-            {loading ? "Opening…" : "Manage Billing"}
+            {success ? "Payment succeeded. Welcome aboard!" : "Checkout was canceled."}
+          </div>
+        )}
+
+        {err && (
+          <div
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+          >
+            {err}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={goSubscribe}
+            disabled={busy}
+            className="btn btn-brand"
+          >
+            {busy ? "Working…" : "Subscribe ($1/mo)"}
           </button>
+
+          <button
+            type="button"
+            onClick={openPortal}
+            disabled={busy}
+            className="btn"
+          >
+            {busy ? "Opening…" : "Open Billing Portal"}
+          </button>
+
+          <Link href="/dashboard" className="btn bg-slate-100 text-slate-800 hover:bg-slate-200">
+            Back to Dashboard
+          </Link>
         </div>
-      </div>
+
+        <p className="text-xs muted">
+          Having trouble? If the buttons don’t redirect, make sure your Stripe keys and webhook
+          URL are configured in Vercel project settings.
+        </p>
+      </section>
     </div>
   );
 }
