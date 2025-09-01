@@ -1,22 +1,40 @@
 import * as React from "react";
+import { HTMLAttributes } from "react";
 
-export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+export function Card(props: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 ${className}`}
       {...props}
+      className={cx(
+        "rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm",
+        props.className
+      )}
     />
   );
 }
 
-export function CardHeader({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={`p-6 pb-3 ${className}`} {...props} />;
+export function CardHeader(props: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      {...props}
+      className={cx("px-6 py-4 flex items-center justify-between", props.className)}
+    />
+  );
 }
 
-export function CardTitle({ className = "", ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={`text-lg font-semibold text-slate-900 ${className}`} {...props} />;
+export function CardTitle(props: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      {...props}
+      className={cx("text-base font-semibold text-slate-900", props.className)}
+    />
+  );
 }
 
-export function CardContent({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={`p-6 pt-3 ${className}`} {...props} />;
+export function CardContent(props: HTMLAttributes<HTMLDivElement>) {
+  return <div {...props} className={cx("px-6 py-4", props.className)} />;
 }

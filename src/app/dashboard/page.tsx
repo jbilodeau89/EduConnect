@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabaseClient";
 import { appChannel } from "@/lib/realtime";
@@ -10,8 +10,8 @@ import EmptyState from "@/components/EmptyState";
 
 type RecentItem = {
   id: string;
-  occurred_at: string;
-  created_at: string; // used for ordering
+  occurred_at: string;              // ISO
+  created_at: string;               // ISO, used for ordering
   method: string;
   category: string | null;
   subject: string | null;
@@ -19,7 +19,6 @@ type RecentItem = {
   student: { first_name: string; last_name: string } | null;
 };
 
-// Shapes for selects
 type ContactRow = {
   id: string;
   subject: string | null;
@@ -41,6 +40,13 @@ const startOfWeekMonday = (d: Date) => {
   return monday;
 };
 
+// Narrow unknown → non-empty string (or undefined)
+const toNonEmpty = (val: unknown): string | undefined => {
+  if (typeof val !== "string") return undefined;
+  const s = val.trim();
+  return s.length ? s : undefined;
+};
+
 export default function DashboardPage() {
   const [name, setName] = useState<string>("Teacher");
   const [uid, setUid] = useState<string | null>(null);
@@ -49,6 +55,11 @@ export default function DashboardPage() {
   const [totalContacts, setTotalContacts] = useState<number>(0);
   const [contactsThisWeek, setContactsThisWeek] = useState<number>(0);
   const [recent, setRecent] = useState<RecentItem[] | null>(null);
+
+  // Filters
+  const [studentFilter, setStudentFilter] = useState("");
+  const [reasonFilter, setReasonFilter] = useState("");
+  const [methodFilter, setMethodFilter] = useState(""); // NEW
 
   // Initial load
   useEffect(() => {
@@ -61,30 +72,24 @@ export default function DashboardPage() {
       if (!user) return;
       if (mounted) setUid(user.id);
 
-      // ---- Profile name (runtime narrowing, no casts to `any`) ----
+      // ---- Profile name (strict-safe) ----
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name")
         .eq("id", user.id)
         .maybeSingle();
 
-      let profileFull: string | undefined;
-      {
-        const p = profile as unknown;
-        if (typeof p === "object" && p !== null) {
-          const v = (p as Record<string, unknown>)["full_name"];
-          if (typeof v === "string" && v.trim().length > 0) profileFull = v;
-        }
-      }
+      const profileFull = toNonEmpty(
+        typeof profile === "object" && profile !== null
+          ? (profile as Record<string, unknown>)["full_name"]
+          : undefined
+      );
 
-      let metaFull: string | undefined;
-      {
-        const meta = user.user_metadata as unknown;
-        if (typeof meta === "object" && meta !== null) {
-          const v = (meta as Record<string, unknown>)["full_name"];
-          if (typeof v === "string" && v.trim().length > 0) metaFull = v;
-        }
-      }
+      const metaFull = toNonEmpty(
+        typeof user.user_metadata === "object" && user.user_metadata !== null
+          ? (user.user_metadata as Record<string, unknown>)["full_name"]
+          : undefined
+      );
 
       const display = profileFull ?? metaFull ?? user.email?.split("@")[0] ?? "Teacher";
       if (mounted) setName(display);
@@ -104,13 +109,13 @@ export default function DashboardPage() {
         .eq("owner_id", user.id)
         .gte("occurred_at", monday.toISOString());
 
-      // Recent activity: sort by created_at (submission time)
+      // Recent activity: newest first by created_at
       const { data: contactsRaw } = await supabase
         .from("contacts")
         .select("id, subject, summary, occurred_at, created_at, method, category, student_id")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(20);
 
       let recentList: RecentItem[] = [];
       if (contactsRaw && contactsRaw.length) {
@@ -126,7 +131,7 @@ export default function DashboardPage() {
             .select("id, first_name, last_name")
             .in("id", studentIds);
 
-          const list = (students as unknown as StudentMini[] | null) ?? [];
+          const list = ((students as unknown) as StudentMini[] | null) ?? [];
           map = new Map(list.map((s) => [s.id, s]));
         }
 
@@ -195,7 +200,7 @@ export default function DashboardPage() {
           setContactsThisWeek((n) => n + 1);
         }
 
-        // Add to recent and keep latest 5 by created_at
+        // Add to recent and keep latest 20 by created_at
         const createdAt = p.created_at ?? new Date().toISOString();
         setRecent((prev) => {
           const nextItem: RecentItem = {
@@ -210,7 +215,7 @@ export default function DashboardPage() {
           };
           const next = [nextItem, ...(prev ?? [])];
           next.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          return next.slice(0, 5);
+          return next.slice(0, 20);
         });
       })
       .subscribe();
@@ -220,18 +225,55 @@ export default function DashboardPage() {
     };
   }, [uid]);
 
+  // Derived: filtered recent items (Student, Reason, Method)
+  const filteredRecent = useMemo(() => {
+    if (!recent) return null;
+    const s = studentFilter.trim().toLowerCase();
+    const r = reasonFilter.trim().toLowerCase();
+    const m = methodFilter.trim().toLowerCase(); // NEW
+
+    return recent.filter((item) => {
+      const studentName = item.student ? `${item.student.last_name}, ${item.student.first_name}`.toLowerCase() : "";
+      const reason = item.category?.toLowerCase() ?? "";
+      const method = item.method?.toLowerCase() ?? "";
+
+      const okStudent = s ? studentName.includes(s) : true;
+      const okReason = r ? reason.includes(r) : true;
+      const okMethod = m ? method === m : true; // exact match for method values
+
+      return okStudent && okReason && okMethod;
+    });
+  }, [recent, studentFilter, reasonFilter, methodFilter]);
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1>Welcome, {name}</h1>
-        <p className="muted mt-1">Here’s a quick snapshot of your classroom communications.</p>
-      </header>
+      {/* Brand banner + CTA */}
+      <div className="rounded-2xl overflow-hidden ring-1 ring-slate-200 bg-white shadow-sm">
+        <div className="bg-brand text-white px-6 py-4 flex items-center justify-between">
+          <div className="font-semibold">EduContact</div>
+          <div className="text-sm opacity-90">Persian Plum • Ivory Quartz</div>
+        </div>
 
+        <div className="p-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Welcome, {name}</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Here’s a quick snapshot of your classroom communications.
+            </p>
+          </div>
+          <Link href="/dashboard/contacts" className="inline-flex">
+            <Button className="btn-brand bg-brand-700 hover:bg-brand-800">New Contact</Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Stats row */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="p-6">
             <div className="text-sm text-slate-600">Total Students</div>
             <div className="mt-2 text-3xl font-semibold text-slate-900">{totalStudents}</div>
+            <div className="mt-4 h-1 rounded-full bg-brand-700" />
           </CardContent>
         </Card>
 
@@ -239,6 +281,7 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="text-sm text-slate-600">Total Contacts</div>
             <div className="mt-2 text-3xl font-semibold text-slate-900">{totalContacts}</div>
+            <div className="mt-4 h-1 rounded-full bg-brand-700" />
           </CardContent>
         </Card>
 
@@ -246,40 +289,100 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="text-sm text-slate-600">Contacts This Week</div>
             <div className="mt-2 text-3xl font-semibold text-slate-900">{contactsThisWeek}</div>
+            <div className="mt-4 h-1 rounded-full bg-ivory" />
           </CardContent>
         </Card>
       </section>
 
+      {/* Recent Activity */}
       <Card>
         <CardHeader className="flex items-center justify-between">
           <CardTitle>Recent Activity</CardTitle>
-          <Link href="/dashboard/contacts">
-            <Button>New Contact</Button>
-          </Link>
+          <div className="flex gap-2">
+            <input
+              value={studentFilter}
+              onChange={(e) => setStudentFilter(e.target.value)}
+              placeholder="Filter by student…"
+              className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600 focus:border-brand-600"
+            />
+            <input
+              value={reasonFilter}
+              onChange={(e) => setReasonFilter(e.target.value)}
+              placeholder="Filter by reason…"
+              className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600 focus:border-brand-600"
+            />
+            <select
+              value={methodFilter}
+              onChange={(e) => setMethodFilter(e.target.value)}
+              className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-brand-600 focus:border-brand-600"
+              title="Filter by method"
+            >
+              <option value="">All methods</option>
+              <option value="email">Email</option>
+              <option value="phone">Phone</option>
+              <option value="in_person">In person</option>
+              <option value="video">Video</option>
+              <option value="message">Message</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
         </CardHeader>
+
+        <div className="h-1 bg-gradient-to-r from-brand-700 to-ivory" />
+
         <CardContent>
-          {recent === null ? (
+          {filteredRecent === null ? (
             <div className="mt-2 text-sm text-slate-600">Loading…</div>
-          ) : recent.length === 0 ? (
-            <EmptyState title="No contact logs yet." hint="Create your first one to see activity here." />
+          ) : filteredRecent.length === 0 ? (
+            <EmptyState title="No recent contacts." hint="Try adjusting your filters." />
           ) : (
-            <ul className="mt-2 divide-y divide-slate-200">
-              {recent.map((c) => (
-                <li key={c.id} className="py-3">
-                  <div className="text-sm">
-                    <div className="font-medium text-slate-900">
-                      {c.student ? `${c.student.last_name}, ${c.student.first_name}` : "Unknown student"}
-                    </div>
-                    <div className="text-slate-600">
-                      {new Date(c.occurred_at).toLocaleString()} · {c.method.replace("_", " ")}
-                      {c.category ? ` · ${c.category}` : ""}
-                    </div>
-                    {c.subject && <div className="text-slate-900 mt-1">{c.subject}</div>}
-                    {c.summary && <div className="text-slate-700 mt-1">{c.summary}</div>}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-slate-600">
+                  <tr>
+                    <th className="py-2 pr-4">Student</th>
+                    <th className="py-2 pr-4">Date</th>
+                    <th className="py-2 pr-4">Time</th>
+                    <th className="py-2 pr-4">Method</th>
+                    <th className="py-2 pr-4">Reason</th>
+                    <th className="py-2 pr-4">Message</th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-900">
+                  {filteredRecent.map((c) => {
+                    const d = new Date(c.occurred_at);
+                    const dateStr = d.toLocaleDateString();
+                    const timeStr = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+                    return (
+                      <tr key={c.id} className="border-t border-slate-200">
+                        <td className="py-2 pr-4">
+                          {c.student ? `${c.student.last_name}, ${c.student.first_name}` : "Unknown student"}
+                        </td>
+                        <td className="py-2 pr-4">{dateStr}</td>
+                        <td className="py-2 pr-4">{timeStr}</td>
+                        <td className="py-2 pr-4">
+                          <span className="inline-flex items-center rounded-full bg-ivory text-brand-900 ring-1 ring-brand-200 px-2.5 py-0.5 text-xs font-medium">
+                            {c.method.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-4">
+                          {c.category ? (
+                            <span className="inline-flex items-center rounded-full bg-ivory text-brand-900 ring-1 ring-brand-200 px-2.5 py-0.5 text-xs font-medium">
+                              {c.category}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="py-2 pr-4">
+                          {c.subject?.trim() || c.summary?.trim() || "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

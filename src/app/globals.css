@@ -1,36 +1,123 @@
+/* src/app/globals.css */
 @import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-/* Minimal reset */
-*,
-*::before,
-*::after { box-sizing: border-box; }
+/* ---- Brand tokens (Persian Plum + Ivory Quartz) ---- */
+:root {
+  --brand: #701c1c;      /* Persian Plum */
+  --brand-700: #5e1717;
+  --brand-800: #4a1212;
 
-html, body, #__next { height: 100%; }
+  --ivory: #f0ead6;      /* Ivory Quartz */
+  --ivory-100: #f8f5ea;
 
-body {
-  margin: 0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* “Slate-ish” neutrals via RGB so we can use opacity easily */
+  --text-900: 17 24 39;   /* ~slate-900 */
+  --text-700: 55 65 81;   /* ~slate-700 */
+  --text-600: 71 85 105;  /* ~slate-600 */
 }
 
-/* Accessible selection colors (approx Tailwind sky-200 / slate-900) */
-::selection {
-  background: #bae6fd;
-  color: #0f172a;
+/* Base */
+html, body {
+  min-height: 100%;
+  background-color: var(--ivory);
+  color: rgb(var(--text-900));
+  font-feature-settings: "liga" 1, "kern" 1;
 }
 
-/* Primitives reference (not CSS):
-Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
-Card: rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-6
-Headings: text-3xl (page) · text-lg (section) · text-sm (labels)
-Primary button: inline-flex items-center rounded-lg bg-sky-600 px-4 py-2 text-white text-sm font-medium hover:bg-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600
-Inputs: rounded-lg border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500
-*/
-@layer base {
-  h1 { @apply text-3xl font-semibold text-slate-900; }
-  h2 { @apply text-lg font-semibold text-slate-900; }
-  p.muted { @apply text-sm text-slate-600; }
+/* Helpers */
+.muted { color: rgb(var(--text-600)); }
+.bg-ivory { background-color: var(--ivory); }
+
+/* ---- Components (pure CSS equivalents to the Tailwind utilities we were @applying) ---- */
+
+/* Card */
+.card {
+  /* rounded-2xl + ring-1 + bg-white + shadow */
+  border-radius: 1rem;                     /* rounded-2xl */
+  background: #fff;                        /* bg-white */
+  border: 1px solid rgba(0, 0, 0, 0.10);   /* ring-1 ring-black/10 */
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.04),
+    0 8px 24px rgba(0,0,0,0.06);           /* nice soft card shadow */
+}
+
+/* Button base */
+.btn {
+  /* inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-colors */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;                  /* rounded-xl */
+  padding: 0.5rem 1rem;                    /* py-2 px-4 */
+  font-size: 0.875rem;                     /* text-sm */
+  font-weight: 500;                        /* font-medium */
+  transition: background-color .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;
+  cursor: pointer;
+}
+
+/* Button variants */
+.btn-plain {
+  background: #fff;
+  color: rgb(var(--text-900));
+  border: 1px solid rgba(0,0,0,0.10);
+}
+.btn-plain:hover {
+  background: #f9fafb;
+}
+
+.btn-brand {
+  background: var(--brand);
+  color: #fff;
+  border: 1px solid transparent;
+}
+.btn-brand:hover { background: var(--brand-700); }
+.btn-brand:disabled { opacity: .7; cursor: not-allowed; }
+
+/* Sidebar link */
+.sidebar-link {
+  /* flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors */
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.75rem;                  /* rounded-xl */
+  padding: 0.5rem 0.75rem;                 /* py-2 px-3 */
+  font-size: 0.875rem;                     /* text-sm */
+  color: rgb(var(--text-700));
+  transition: background-color .15s ease, color .15s ease;
+}
+.sidebar-link:hover { background: rgba(0,0,0,0.04); }
+.sidebar-link.is-active {
+  background: var(--brand-800);
+  color: #fff;
+}
+
+/* Inputs */
+.input, .select, .textarea {
+  width: 100%;
+  border-radius: 0.75rem;                  /* rounded-xl */
+  font-size: 0.875rem;                     /* text-sm */
+  padding: 0.5rem 0.75rem;                 /* py-2 px-3 */
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 2px rgba(112,28,28,0.35); /* brand focus ring */
+  border-color: rgba(112,28,28,0.45);
+}
+
+/* Banner sections */
+.banner {
+  background: var(--brand);
+  color: #fff;
+}
+.banner-subtle {
+  background: var(--ivory-100);
+}
+
+/* Small gradient divider used on the dashboard */
+.brand-divider {
+  height: 4px;
+  background: linear-gradient(90deg, var(--brand-700), var(--ivory));
+  border-radius: 9999px;
 }
