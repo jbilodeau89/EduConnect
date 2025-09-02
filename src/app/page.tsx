@@ -7,6 +7,9 @@ import { getSupabase } from "@/lib/supabaseClient";
 
 type Mode = "signin" | "signup";
 
+// Minimal row shape for profiles upsert (no generated types needed)
+type ProfilePayload = { id: string; full_name: string };
+
 export default function LandingPage() {
   const router = useRouter();
   const supabase = getSupabase();
@@ -53,13 +56,20 @@ export default function LandingPage() {
 
       const newUserId = data.user?.id ?? null;
 
-      // Create/update `profiles` row — cast to any to avoid `never` inference
+      // Create/update `profiles` row (non-blocking).
       if (newUserId) {
+        const payload = {
+          id: newUserId,
+          full_name: fullName.trim(),
+        } as const satisfies ProfilePayload;
+
         try {
-          await (supabase as any)
-            .from("profiles")
-            .upsert({ id: newUserId, full_name: fullName.trim() }, { onConflict: "id" });
+          // Without generated DB types, Supabase infers `never` for rows.
+          // We validate `payload` shape above, then suppress the call-site error.
+          // @ts-expect-error – no generated types for "profiles" table
+          await supabase.from("profiles").upsert(payload, { onConflict: "id" });
         } catch (upErr) {
+          // Not fatal; dashboard can read name from user_metadata
           console.warn("profiles upsert failed:", upErr);
         }
       }
@@ -107,7 +117,6 @@ export default function LandingPage() {
               <button className="btn btn-brand" onClick={() => router.push("/demo")}>
                 Try Demo
               </button>
-              {/* (Removed "See Features" button) */}
             </div>
 
             {/* Value props */}
