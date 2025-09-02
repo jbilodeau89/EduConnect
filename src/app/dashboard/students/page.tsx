@@ -15,7 +15,7 @@ export default function StudentsPage() {
   // Filters
   const [q, setQ] = useState(""); // search: name/email
   const [gradeFilter, setGradeFilter] = useState<string>("");
-  const [homeroomFilter, setHomeroomFilter] = useState<string>("");
+  const [homeroomFilter, setHomeroomFilter] = useState<string>(""); // stays named "homeroom" to avoid ripple
 
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -226,13 +226,13 @@ export default function StudentsPage() {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-xs uppercase tracking-wide muted mb-1">Homeroom</label>
+              <label className="text-xs uppercase tracking-wide muted mb-1">Class</label>
               <select
                 value={homeroomFilter}
                 onChange={(e) => setHomeroomFilter(e.target.value)}
                 className="rounded-lg border px-3 py-2 text-sm w-44"
               >
-                <option value="">All homerooms</option>
+                <option value="">All classes</option>
                 {uniqueHomerooms.map((h) => (
                   <option key={h} value={h}>
                     {h}
@@ -273,7 +273,7 @@ export default function StudentsPage() {
             </div>
             <div>Name</div>
             <div>Grade</div>
-            <div>Homeroom</div>
+            <div>Class</div>
             <div>Email</div>
           </div>
         </div>
@@ -318,7 +318,7 @@ export default function StudentsPage() {
                       )}
                     </span>
 
-                    {/* Homeroom pill */}
+                    {/* Class pill (still reading DB `homeroom`) */}
                     <span>
                       {s.homeroom ? (
                         <span className={gradePill}>{s.homeroom}</span>

@@ -9,7 +9,7 @@ export type StudentRow = {
   first_name: string;
   last_name: string;
   grade: string | null;
-  homeroom: string | null;
+  homeroom: string | null; // DB field; shown as "Class" in UI
   email: string | null;
 };
 
@@ -20,7 +20,7 @@ type StudentInsertRow = {
   last_name: string;
   email: string | null;
   grade: string | null;
-  homeroom: string | null;
+  homeroom: string | null; // <-- still homeroom in DB
 };
 
 export default function NewStudentForm({
@@ -34,7 +34,7 @@ export default function NewStudentForm({
   const [lastName, setLast] = useState("");
   const [email, setEmail] = useState("");
   const [grade, setGrade] = useState("");
-  const [homeroom, setHomeroom] = useState("");
+  const [homeroom, setHomeroom] = useState(""); // UI label shows "Class"
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,12 +69,12 @@ export default function NewStudentForm({
         last_name: lastName.trim(),
         email: email.trim() || null,
         grade: grade.trim() || null,
-        homeroom: homeroom.trim() || null,
+        homeroom: homeroom.trim() || null, // still writes to DB homeroom
       };
 
       const { data, error: insErr } = await supabase
         .from("students")
-        // Without generated DB types, Supabase generics default to `never`. Cast only here.
+        // Without generated DB types, Supabase generics may infer `never`. Cast only here.
         .insert(payload as never)
         .select("id, first_name, last_name, email, grade, homeroom")
         .single();
@@ -169,13 +169,13 @@ export default function NewStudentForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">
-            Homeroom
+            Class
           </label>
           <input
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             value={homeroom}
             onChange={(e) => setHomeroom(e.target.value)}
-            placeholder="e.g., 202"
+            placeholder="e.g., Algebra I"
           />
         </div>
       </div>

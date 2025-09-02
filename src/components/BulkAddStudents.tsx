@@ -8,12 +8,11 @@ export type StudentRow = {
   first_name: string;
   last_name: string;
   grade: string | null;
-  homeroom: string | null;
+  homeroom: string | null; // DB field; shown as "Class" in UI
   email: string | null;
 };
 
 type ParsedRow = Omit<StudentRow, "id">;
-const REQUIRED_HEADERS = ["first_name", "last_name"] as const;
 
 // Insert payload shape (what we send to Supabase)
 type StudentInsertRow = {
@@ -22,16 +21,22 @@ type StudentInsertRow = {
   last_name: string;
   email: string | null;
   grade: string | null;
-  homeroom: string | null;
+  homeroom: string | null; // <-- still homeroom in DB
 };
 
+const REQUIRED_HEADERS = ["first_name", "last_name"] as const;
+
+/** Map incoming header names to our canonical internal keys */
 function normalizeHeader(h: string): string {
   const key = h.trim().toLowerCase();
   if (["first", "firstname", "first name"].includes(key)) return "first_name";
   if (["last", "lastname", "last name"].includes(key)) return "last_name";
   if (key === "email") return "email";
   if (key === "grade") return "grade";
-  if (key === "homeroom") return "homeroom";
+
+  // Accept "class" (and common synonyms) but normalize to the DB column `homeroom`
+  if (["class", "course", "section", "period", "room", "homeroom"].includes(key)) return "homeroom";
+
   return key;
 }
 
@@ -104,7 +109,7 @@ function toParsedRows(text: string): { rows: ParsedRow[]; errors: string[] } {
       last_name: last,
       email: get("email") || null,
       grade: get("grade") || null,
-      homeroom: get("homeroom") || null,
+      homeroom: get("homeroom") || null, // canonical internal key
     });
   }
 
@@ -159,9 +164,10 @@ export default function BulkAddStudents({
   };
 
   const onDownloadTemplate = () => {
-    const csv = `first_name,last_name,email,grade,homeroom
-Ada,Smith,ada@school.org,9,201
-Ben,Lee,,8,104
+    // Use "class" in the downloadable template (we still normalize to homeroom internally)
+    const csv = `first_name,last_name,email,grade,class
+Ada,Smith,ada@school.org,9,Algebra I
+Ben,Lee,,8,History 8
 `;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -192,12 +198,12 @@ Ben,Lee,,8,104
         last_name: r.last_name,
         email: r.email,
         grade: r.grade,
-        homeroom: r.homeroom,
+        homeroom: r.homeroom, // still DB `homeroom`
       }));
 
       const { data, error } = await supabase
         .from("students")
-        // Without generated DB types, Supabase generics default to `never`. Cast only here.
+        // Without generated DB types, Supabase generics may infer `never`. Cast only here.
         .insert(chunkPayload as never)
         .select("id, first_name, last_name, email, grade, homeroom");
 
@@ -240,7 +246,7 @@ Ben,Lee,,8,104
         <p className="mt-1 text-sm text-slate-600">
           Upload a CSV or paste from a spreadsheet. Required headers:
           <span className="font-medium"> first_name, last_name</span>. Optional:
-          <span className="font-medium"> email, grade, homeroom</span>.
+          <span className="font-medium"> email, grade, class</span>.
         </p>
 
         <div className="mt-4 flex items-center gap-3">
@@ -268,9 +274,9 @@ Ben,Lee,,8,104
             rows={8}
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
-            placeholder={`first_name,last_name,email,grade,homeroom
-Ada,Smith,ada@school.org,9,201
-Ben,Lee,,8,104`}
+            placeholder={`first_name,last_name,email,grade,class
+Ada,Smith,ada@school.org,9,Algebra I
+Ben,Lee,,8,History 8`}
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
           />
         </div>
@@ -288,7 +294,7 @@ Ben,Lee,,8,104`}
             Re-preview
           </button>
 
-          <button
+        <button
             type="button"
             onClick={onInsert}
             disabled={importDisabled}
@@ -326,7 +332,7 @@ Ben,Lee,,8,104`}
                     <th className="py-2 pr-4">Last name</th>
                     <th className="py-2 pr-4">Email</th>
                     <th className="py-2 pr-4">Grade</th>
-                    <th className="py-2 pr-4">Homeroom</th>
+                    <th className="py-2 pr-4">Class</th>
                   </tr>
                 </thead>
                 <tbody className="text-slate-900">
