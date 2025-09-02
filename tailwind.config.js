@@ -9,15 +9,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: {               // Persian Plum
-          DEFAULT: "#701C1C",
-          700: "#5E1717",
-          800: "#4A1212",
-        },
-        ivory: {               // Ivory Quartz
-          DEFAULT: "#F0EAD6",
-          100: "#F8F5EA",
-        },
+        brand: { DEFAULT: "#701C1C", 700: "#5E1717", 800: "#4A1212" },
+        ivory: { DEFAULT: "#F0EAD6", 100: "#F8F5EA" },
       },
       borderRadius: { "2xl": "1rem" },
       boxShadow: {
