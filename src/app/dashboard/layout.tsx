@@ -43,7 +43,7 @@ export default function DashboardLayout({
           <aside
             className={`${asideWidth} shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)] overflow-y-auto`}
           >
-            <Sidebar collapsed={collapsed} />
+            + <Sidebar initialCollapsed={collapsed} />
           </aside>
 
           {/* Main content */}
