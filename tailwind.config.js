@@ -9,8 +9,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: { DEFAULT: "#701C1C", 700: "#5E1717", 800: "#4A1212" },
-        ivory: { DEFAULT: "#F0EAD6", 100: "#F8F5EA" },
+        brand: { DEFAULT: "#1F3C88", 500: "#24408F", 600: "#1B3474", 700: "#162A5F", 900: "#0C1538" },
+        accent: { DEFAULT: "#F4A261", 500: "#E98B3A" },
+        shell: { DEFAULT: "#F5F7FB" },
+        ivory: { DEFAULT: "#F5F7FB", 200: "#E8EEF9" },
       },
       borderRadius: { "2xl": "1rem" },
       boxShadow: {
@@ -18,5 +20,6 @@ module.exports = {
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   plugins: [require("@tailwindcss/forms")],
 };

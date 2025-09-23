@@ -246,75 +246,114 @@ export default function DashboardPage() {
   }, [recent, studentFilter, reasonFilter, methodFilter]);
 
   return (
-    <div className="space-y-6">
-      {/* Brand banner + CTA */}
-      <div className="rounded-2xl overflow-hidden ring-1 ring-slate-200 bg-white shadow-sm">
-        <div className="bg-brand text-white px-6 py-4 flex items-center justify-between">
-          <div className="font-semibold">EduContact</div>
-          <div className="text-sm opacity-90">Persian Plum • Ivory Quartz</div>
-        </div>
-
-        <div className="p-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Welcome, {name}</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Here’s a quick snapshot of your classroom communications.
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand to-brand-700 text-white shadow-[0_35px_65px_-45px_rgba(15,23,42,0.8)]">
+        <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_top,rgba(244,162,97,0.45),transparent_60%)]" aria-hidden />
+        <div className="relative flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-accent">
+              Welcome back, {name}
+            </p>
+            <h1 className="mt-3 text-3xl md:text-4xl font-semibold">
+              Guide every family partnership with confidence.
+            </h1>
+            <p className="mt-3 text-sm text-white/85">
+              Today’s dashboard highlights the students you are connecting with most, the methods you rely on,
+              and the conversations still waiting for a follow-up.
             </p>
           </div>
-          <Link href="/dashboard/contacts" className="inline-flex">
-            <Button className="btn-brand bg-brand-700 hover:bg-brand-800">New Contact</Button>
-          </Link>
+
+          <div className="flex flex-col items-start gap-3 rounded-2xl bg-white/10 p-6 text-left backdrop-blur">
+            <span className="text-xs uppercase tracking-[0.3em] text-white/70">
+              Weekly impact
+            </span>
+            <div className="text-4xl font-semibold">{contactsThisWeek}</div>
+            <p className="text-sm text-white/80">
+              logged touchpoints with families in the last seven days.
+            </p>
+            <Link href="/dashboard/contacts" className="inline-flex">
+              <Button className="shadow-lg shadow-brand/30">Log a touchpoint</Button>
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Stats row */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-slate-600">Total Students</div>
-            <div className="mt-2 text-3xl font-semibold text-slate-900">{totalStudents}</div>
-            <div className="mt-4 h-1 rounded-full bg-brand-700" />
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Card className="p-6">
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span>Total students</span>
+              <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand">Roster</span>
+            </div>
+            <div className="mt-4 flex items-end justify-between">
+              <div>
+                <p className="text-3xl font-semibold text-brand">{totalStudents}</p>
+                <p className="mt-1 text-xs text-slate-500">active learners in your care</p>
+              </div>
+              <div className="h-16 w-16 rounded-full bg-brand/10 ring-4 ring-brand/20" aria-hidden />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-slate-600">Total Contacts</div>
-            <div className="mt-2 text-3xl font-semibold text-slate-900">{totalContacts}</div>
-            <div className="mt-4 h-1 rounded-full bg-brand-700" />
+        <Card className="p-6">
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span>Lifetime contacts</span>
+              <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent-500">History</span>
+            </div>
+            <div className="mt-4 flex items-end justify-between">
+              <div>
+                <p className="text-3xl font-semibold text-brand">{totalContacts}</p>
+                <p className="mt-1 text-xs text-slate-500">family updates captured</p>
+              </div>
+              <div className="h-16 w-16 rounded-full bg-accent/20 ring-4 ring-accent/30" aria-hidden />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-slate-600">Contacts This Week</div>
-            <div className="mt-2 text-3xl font-semibold text-slate-900">{contactsThisWeek}</div>
-            <div className="mt-4 h-1 rounded-full bg-ivory" />
+        <Card className="p-6">
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span>Rhythm this week</span>
+              <span className="rounded-full bg-brand/5 px-3 py-1 text-xs font-medium text-brand">Cadence</span>
+            </div>
+            <div className="mt-4 flex items-end justify-between">
+              <div>
+                <p className="text-3xl font-semibold text-brand">{contactsThisWeek}</p>
+                <p className="mt-1 text-xs text-slate-500">touchpoints since Monday</p>
+              </div>
+              <div className="h-16 w-16 rounded-full bg-brand/10 ring-4 ring-brand/10" aria-hidden />
+            </div>
           </CardContent>
         </Card>
       </section>
 
-      {/* Recent Activity */}
       <Card>
-        <CardHeader className="flex items-center justify-between">
-          <CardTitle>Recent Activity</CardTitle>
-          <div className="flex gap-2">
+        <CardHeader className="flex flex-col gap-4 border-b border-brand/10 bg-white/60 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-xl font-semibold text-brand">Recent family conversations</CardTitle>
+            <p className="mt-1 text-sm text-slate-500">
+              Search across your latest updates to prepare for conferences and check-ins.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <input
               value={studentFilter}
               onChange={(e) => setStudentFilter(e.target.value)}
-              placeholder="Filter by student…"
-              className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600 focus:border-brand-600"
+              placeholder="Student name"
+              className="w-40 rounded-xl border border-brand/20 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
             />
             <input
               value={reasonFilter}
               onChange={(e) => setReasonFilter(e.target.value)}
-              placeholder="Filter by reason…"
-              className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600 focus:border-brand-600"
+              placeholder="Reason"
+              className="w-36 rounded-xl border border-brand/20 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
             />
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value)}
-              className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-brand-600 focus:border-brand-600"
+              className="w-36 rounded-xl border border-brand/20 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
               title="Filter by method"
             >
               <option value="">All methods</option>
@@ -325,57 +364,72 @@ export default function DashboardPage() {
               <option value="message">Message</option>
               <option value="other">Other</option>
             </select>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setStudentFilter("");
+                setReasonFilter("");
+                setMethodFilter("");
+              }}
+              className="px-4"
+            >
+              Clear
+            </Button>
           </div>
         </CardHeader>
 
-        <div className="h-1 bg-gradient-to-r from-brand-700 to-ivory" />
-
-        <CardContent>
+        <CardContent className="px-0 pb-0">
           {filteredRecent === null ? (
-            <div className="mt-2 text-sm text-slate-600">Loading…</div>
+            <div className="px-6 py-8 text-sm text-slate-600">Loading…</div>
           ) : filteredRecent.length === 0 ? (
-            <EmptyState title="No recent contacts." hint="Try adjusting your filters." />
+            <div className="px-6 py-10">
+              <EmptyState title="No recent contacts." hint="Try adjusting your filters." />
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="text-slate-600">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-brand/10 text-left text-sm">
+                <thead className="bg-brand/5 text-slate-600">
                   <tr>
-                    <th className="py-2 pr-4">Student</th>
-                    <th className="py-2 pr-4">Date</th>
-                    <th className="py-2 pr-4">Time</th>
-                    <th className="py-2 pr-4">Method</th>
-                    <th className="py-2 pr-4">Reason</th>
-                    <th className="py-2 pr-4">Message</th>
+                    <th className="py-3 pl-6 pr-4 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Time</th>
+                    <th className="px-4 py-3 font-medium">Method</th>
+                    <th className="px-4 py-3 font-medium">Reason</th>
+                    <th className="px-4 py-3 font-medium">Message</th>
                   </tr>
                 </thead>
-                <tbody className="text-slate-900">
+                <tbody className="divide-y divide-brand/10 bg-white">
                   {filteredRecent.map((c) => {
                     const d = new Date(c.occurred_at);
                     const dateStr = d.toLocaleDateString();
                     const timeStr = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
                     return (
-                      <tr key={c.id} className="border-t border-slate-200">
-                        <td className="py-2 pr-4">
-                          {c.student ? `${c.student.last_name}, ${c.student.first_name}` : "Unknown student"}
+                      <tr key={c.id} className="transition hover:bg-brand/5">
+                        <td className="whitespace-nowrap py-4 pl-6 pr-4">
+                          <div className="font-medium text-slate-900">
+                            {c.student ? `${c.student.last_name}, ${c.student.first_name}` : "Unknown student"}
+                          </div>
+                          <div className="text-xs text-slate-500">{c.subject?.trim() || c.summary?.trim() || "—"}</div>
                         </td>
-                        <td className="py-2 pr-4">{dateStr}</td>
-                        <td className="py-2 pr-4">{timeStr}</td>
-                        <td className="py-2 pr-4">
-                          <span className="inline-flex items-center rounded-full bg-ivory text-brand-900 ring-1 ring-brand-200 px-2.5 py-0.5 text-xs font-medium">
+                        <td className="px-4 py-4 text-slate-700">{dateStr}</td>
+                        <td className="px-4 py-4 text-slate-700">{timeStr}</td>
+                        <td className="px-4 py-4">
+                          <span className="inline-flex items-center rounded-full bg-brand/10 px-3 py-1 text-xs font-medium capitalize text-brand">
                             {c.method.replace("_", " ")}
                           </span>
                         </td>
-                        <td className="py-2 pr-4">
+                        <td className="px-4 py-4">
                           {c.category ? (
-                            <span className="inline-flex items-center rounded-full bg-ivory text-brand-900 ring-1 ring-brand-200 px-2.5 py-0.5 text-xs font-medium">
+                            <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-xs font-medium capitalize text-accent-500">
                               {c.category}
                             </span>
                           ) : (
-                            "—"
+                            <span className="text-slate-400">—</span>
                           )}
                         </td>
-                        <td className="py-2 pr-4">
-                          {c.subject?.trim() || c.summary?.trim() || "—"}
+                        <td className="px-4 py-4 text-slate-700">
+                          {c.summary?.trim() || "—"}
                         </td>
                       </tr>
                     );

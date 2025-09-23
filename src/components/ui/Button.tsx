@@ -16,10 +16,10 @@ export function Button({ className, variant = "brand", ...rest }: Props) {
 
   const v =
     variant === "brand"
-      ? "text-white bg-brand-700 hover:bg-brand-800 focus-visible:outline-brand-700"
+      ? "text-white bg-brand hover:bg-brand-600 focus-visible:outline-brand"
       : variant === "secondary"
-      ? "text-brand-700 bg-ivory hover:bg-ivory-200 focus-visible:outline-brand-700 ring-1 ring-slate-200"
-      : "text-slate-700 hover:bg-slate-100 focus-visible:outline-brand-700";
+      ? "text-brand-700 bg-shell hover:bg-white focus-visible:outline-brand ring-1 ring-brand/10"
+      : "text-slate-700 hover:bg-slate-100 focus-visible:outline-brand";
 
   return <button className={cx(base, v, className)} {...rest} />;
 }
