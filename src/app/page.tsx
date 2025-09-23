@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabaseClient";
 
@@ -12,7 +12,10 @@ type ProfilePayload = { id: string; full_name: string };
 
 export default function LandingPage() {
   const router = useRouter();
-  const supabase = getSupabase();
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return getSupabase();
+  }, []);
 
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -29,6 +32,11 @@ export default function LandingPage() {
 
     try {
       setLoading(true);
+
+      if (!supabase) {
+        setError("Supabase is not configured. Please add the required environment variables.");
+        return;
+      }
 
       if (mode === "signin") {
         const { error: signInErr } = await supabase.auth.signInWithPassword({

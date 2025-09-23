@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabaseClient";
-import { appChannel } from "@/lib/realtime";
+import { getAppChannel } from "@/lib/realtime";
 
 type StudentRow = { id: string; first_name: string; last_name: string };
 
@@ -132,7 +132,7 @@ export default function NewContactForm({
       const s = students.find((x) => x.id === created.student_id) ?? null;
 
       // 🔔 Broadcast to dashboard with created_at for correct ordering
-      appChannel.send({
+      getAppChannel()?.send({
         type: "broadcast",
         event: "contact:created",
         payload: {

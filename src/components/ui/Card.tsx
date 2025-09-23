@@ -10,7 +10,7 @@ export function Card(props: HTMLAttributes<HTMLDivElement>) {
     <div
       {...props}
       className={cx(
-        "rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm",
+        "rounded-2xl bg-white/90 backdrop-blur ring-1 ring-brand/10 shadow-[0_20px_45px_-30px_rgba(15,23,42,0.45)]",
         props.className
       )}
     />

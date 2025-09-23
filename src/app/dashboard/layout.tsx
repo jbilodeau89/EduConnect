@@ -31,23 +31,25 @@ export default function DashboardLayout({
   };
 
   // 256px expanded, 68px collapsed
-  const asideWidth = collapsed ? "w-[68px]" : "w-64";
+  const asideWidth = collapsed ? "w-[68px]" : "w-72";
 
   return (
     <>
       <Topbar onToggleSidebar={toggleSidebar} sidebarCollapsed={collapsed} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex gap-6 py-6">
+        <div className="flex gap-6 py-8">
           {/* Sidebar (sticky under top bar) */}
           <aside
             className={`${asideWidth} shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)] overflow-y-auto`}
           >
-            + <Sidebar initialCollapsed={collapsed} />
+            <Sidebar initialCollapsed={collapsed} />
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 min-w-0">{children}</main>
+          <main className="flex-1 min-w-0">
+            <div className="grid gap-6">{children}</div>
+          </main>
         </div>
       </div>
     </>

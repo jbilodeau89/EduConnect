@@ -7,10 +7,6 @@ import type { SVGProps, ReactElement } from "react";
 
 type IconComponent = (props: SVGProps<SVGSVGElement>) => ReactElement;
 
-
-/* ---------- Minimal inline icons (no dependency) ---------- */
-type IconProps = React.SVGProps<SVGSVGElement>;
-
 const HomeIcon: IconComponent = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
     <path d="M3 10.5L12 3l9 7.5" />
@@ -77,28 +73,45 @@ export default function Sidebar({ initialCollapsed = false }: { initialCollapsed
 
   return (
     <aside
-      className={`shrink-0 border-r border-black/10 bg-white transition-all ${
-        collapsed ? "w-16" : "w-64"
+      className={`shrink-0 border-r border-brand/10 bg-white/90 backdrop-blur transition-all shadow-[0_30px_60px_-45px_rgba(15,23,42,0.4)] ${
+        collapsed ? "w-16" : "w-72"
       }`}
     >
-      <div className="flex items-center justify-between px-3 py-3">
-        {!collapsed && <span className="font-semibold text-brand-900">EduContact</span>}
+      <div className="flex items-center justify-between px-3 py-4">
+        {!collapsed && (
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-500">
+              Teacher Studio
+            </span>
+            <span className="text-lg font-semibold text-brand">EduConnect</span>
+          </div>
+        )}
         <button
           aria-label="Toggle sidebar"
           onClick={() => setCollapsed((c) => !c)}
-          className="rounded-md p-1 hover:bg-black/5"
+          className="rounded-md p-1.5 text-brand hover:bg-brand/5"
         >
           <ChevronLeftIcon className={`h-5 w-5 ${collapsed ? "rotate-180" : ""}`} />
         </button>
       </div>
+
+      {!collapsed && (
+        <div className="mx-3 mb-4 rounded-2xl border border-brand/10 bg-shell p-3 text-xs text-slate-600">
+          <div className="font-semibold text-brand mb-1">This week</div>
+          <p className="leading-relaxed">
+            Log daily touchpoints to keep every family in the loop. Review insights in
+            Analytics to spot who needs a follow-up.
+          </p>
+        </div>
+      )}
 
       <nav className="px-2">
         <ul className="space-y-1">
           {NAV.map(({ href, label, Icon }) => {
             const active = pathname === href || pathname?.startsWith(href + "/");
             const base =
-              "flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
-            const activeCls = active ? "bg-brand/10 text-brand-900" : "text-slate-700";
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-brand/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+            const activeCls = active ? "bg-brand/10 text-brand" : "text-slate-600";
             return (
               <li key={href}>
                 <Link href={href} title={label} className={`${base} ${activeCls}`}>

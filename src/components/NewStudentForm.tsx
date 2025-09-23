@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabaseClient";
-import { appChannel } from "@/lib/realtime";
+import { getAppChannel } from "@/lib/realtime";
 
 export type StudentRow = {
   id: string;
@@ -85,7 +85,7 @@ export default function NewStudentForm({
       const row = data as unknown as StudentRow;
 
       // Broadcast to dashboard (increment Total Students)
-      appChannel.send({
+      getAppChannel()?.send({
         type: "broadcast",
         event: "student:created",
         payload: { owner_id: ownerId, id: row.id },
