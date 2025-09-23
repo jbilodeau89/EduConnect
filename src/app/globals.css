@@ -1,32 +1,40 @@
 /* src/app/globals.css */
 @import "tailwindcss";
 
-/* ---- Brand tokens (Persian Plum + Ivory Quartz) ---- */
+/* ---- Brand tokens (Scholarly Navy + Warm Copper) ---- */
 :root {
-  --brand: #701c1c;      /* Persian Plum */
-  --brand-700: #5e1717;
-  --brand-800: #4a1212;
+  --brand: #1f3c88;      /* Scholarly Navy */
+  --brand-600: #1b3474;
+  --brand-700: #162a5f;
+  --brand-800: #101f49;
 
-  --ivory: #f0ead6;      /* Ivory Quartz */
-  --ivory-100: #f8f5ea;
+  --accent: #f4a261;     /* Warm Copper */
+  --accent-500: #e98b3a;
 
-  /* “Slate-ish” neutrals via RGB so we can use opacity easily */
-  --text-900: 17 24 39;   /* ~slate-900 */
-  --text-700: 55 65 81;   /* ~slate-700 */
-  --text-600: 71 85 105;  /* ~slate-600 */
+  --shell: #f5f7fb;      /* Notebook Paper */
+  --shell-100: #ffffff;
+
+  /* Neutral ink values via RGB for easy opacity */
+  --text-900: 15 23 42;
+  --text-700: 51 65 85;
+  --text-600: 71 85 105;
 }
 
 /* Base */
 html, body {
   min-height: 100%;
-  background-color: var(--ivory);
+  background-color: var(--shell);
   color: rgb(var(--text-900));
   font-feature-settings: "liga" 1, "kern" 1;
+  background-image: radial-gradient(circle at top right, rgba(244, 162, 97, 0.08), transparent 45%),
+    radial-gradient(circle at bottom left, rgba(31, 60, 136, 0.08), transparent 40%);
+  background-attachment: fixed;
 }
 
 /* Helpers */
 .muted { color: rgb(var(--text-600)); }
-.bg-ivory { background-color: var(--ivory); }
+.bg-ivory { background-color: var(--shell); }
+.bg-shell { background-color: var(--shell); }
 
 /* ---- Components (pure CSS equivalents to the Tailwind utilities we were @applying) ---- */
 
@@ -70,7 +78,7 @@ html, body {
   color: #fff;
   border: 1px solid transparent;
 }
-.btn-brand:hover { background: var(--brand-700); }
+.btn-brand:hover { background: var(--brand-600); }
 .btn-brand:disabled { opacity: .7; cursor: not-allowed; }
 
 /* Sidebar link */
@@ -87,7 +95,7 @@ html, body {
 }
 .sidebar-link:hover { background: rgba(0,0,0,0.04); }
 .sidebar-link.is-active {
-  background: var(--brand-800);
+  background: var(--brand-700);
   color: #fff;
 }
 
@@ -102,8 +110,8 @@ html, body {
 }
 .input:focus, .select:focus, .textarea:focus {
   outline: 2px solid transparent;
-  box-shadow: 0 0 0 2px rgba(112,28,28,0.35); /* brand focus ring */
-  border-color: rgba(112,28,28,0.45);
+  box-shadow: 0 0 0 2px rgba(31, 60, 136, 0.35); /* brand focus ring */
+  border-color: rgba(31, 60, 136, 0.45);
 }
 
 /* Banner sections */
@@ -112,12 +120,12 @@ html, body {
   color: #fff;
 }
 .banner-subtle {
-  background: var(--ivory-100);
+  background: var(--shell-100);
 }
 
 /* Small gradient divider used on the dashboard */
 .brand-divider {
   height: 4px;
-  background: linear-gradient(90deg, var(--brand-700), var(--ivory));
+  background: linear-gradient(90deg, rgba(31, 60, 136, 0.95), rgba(244, 162, 97, 0.65));
   border-radius: 9999px;
 }
