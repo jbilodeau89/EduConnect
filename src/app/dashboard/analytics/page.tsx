@@ -213,7 +213,7 @@ type AnalyticsSnapshot = {
 
 const escapePdfText = (input: string) => input.replace(/[\\()]/g, "\\$&");
 
-const composePdf = (lines: PdfLine[]): Uint8Array => {
+const composePdf = (lines: PdfLine[]): ArrayBuffer => {
   const encoder = new TextEncoder();
   const header = encoder.encode("%PDF-1.4\n");
   const chunks: Uint8Array[] = [header];
@@ -275,10 +275,10 @@ const composePdf = (lines: PdfLine[]): Uint8Array => {
     offset += arr.length;
   }
 
-  return pdfBytes;
+  return pdfBytes.buffer;
 };
 
-const generateAnalyticsPdf = (snapshot: AnalyticsSnapshot): Uint8Array => {
+const generateAnalyticsPdf = (snapshot: AnalyticsSnapshot): ArrayBuffer => {
   const lines: PdfLine[] = [
     { text: "EduConnect Analytics Summary", font: "F2", size: 20 },
     {
@@ -563,11 +563,7 @@ export default function AnalyticsPage() {
         reasonData,
         trendData,
       });
-      const pdfBuffer = pdfBytes.buffer.slice(
-        pdfBytes.byteOffset,
-        pdfBytes.byteOffset + pdfBytes.byteLength
-      ) as ArrayBuffer;
-      const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
