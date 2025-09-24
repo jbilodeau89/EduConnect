@@ -520,12 +520,6 @@ export default function AnalyticsPage() {
     [rangeStartMs, rangeEndMs]
   );
 
-  const filterLabels = useMemo(() => {
-    const methodLabels = methodFilters.map((value) => `Method: ${methodLabel(value)}`);
-    const reasonLabels = reasonFilters.map((value) => `Reason: ${reasonLabel(value)}`);
-    return [...methodLabels, ...reasonLabels];
-  }, [methodFilters, reasonFilters]);
-
   const toggleMethod = (value: Method) => {
     setMethodFilters((prev) =>
       prev.includes(value)
@@ -542,6 +536,29 @@ export default function AnalyticsPage() {
     );
   };
 
+  const activeFilters = useMemo(
+    () => [
+      ...methodFilters.map((value) => ({
+        key: `method-${value}`,
+        label: `Method: ${methodLabel(value)}`,
+        type: "method" as const,
+        value,
+      })),
+      ...reasonFilters.map((value) => ({
+        key: `reason-${value}`,
+        label: `Reason: ${reasonLabel(value)}`,
+        type: "reason" as const,
+        value,
+      })),
+    ],
+    [methodFilters, reasonFilters]
+  );
+
+  const activeFilterLabels = useMemo(
+    () => activeFilters.map((filter) => filter.label),
+    [activeFilters]
+  );
+
   const resetFilters = () => {
     setTimeRange("week");
     setCustomStart("");
@@ -557,7 +574,7 @@ export default function AnalyticsPage() {
       const pdfBytes = generateAnalyticsPdf({
         rangeLabel,
         generatedAt: new Date(),
-        filters: filterLabels,
+        filters: activeFilterLabels,
         kpis,
         methodData,
         reasonData,
@@ -591,24 +608,38 @@ export default function AnalyticsPage() {
                 and the reasons you connect most.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-brand/15 bg-brand/5 px-3 py-1 text-xs font-medium text-brand">
-                {rangeLabel}
-              </span>
-              {filterLabels.length === 0 ? (
-                <span className="rounded-full border border-brand/10 bg-white px-3 py-1 text-xs text-slate-500">
-                  All methods & reasons
+            <div className="space-y-2">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Active filters</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-brand/15 bg-brand/5 px-3 py-1 text-xs font-medium text-brand">
+                  {rangeLabel}
                 </span>
-              ) : (
-                filterLabels.map((label) => (
-                  <span
-                    key={label}
-                    className="rounded-full border border-brand/15 bg-brand/5 px-3 py-1 text-xs font-medium text-brand"
-                  >
-                    {label}
+                {activeFilters.length === 0 ? (
+                  <span className="rounded-full border border-brand/10 bg-white px-3 py-1 text-xs text-slate-500">
+                    All methods & reasons
                   </span>
-                ))
-              )}
+                ) : (
+                  activeFilters.map((filter) => (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() => {
+                        if (filter.type === "method") {
+                          toggleMethod(filter.value);
+                        } else {
+                          toggleReason(filter.value);
+                        }
+                      }}
+                      className="group inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/5 px-3 py-1 text-xs font-medium text-brand transition hover:border-brand hover:bg-brand/10"
+                    >
+                      <span>{filter.label}</span>
+                      <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-brand group-hover:bg-white">
+                        ×
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           </div>
           <div className="flex flex-col items-start gap-2 md:items-end">
@@ -642,80 +673,35 @@ export default function AnalyticsPage() {
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Time range</div>
-            <div className="flex flex-wrap gap-2">
-              {TIME_RANGE_PRESETS.map((preset) => {
-                const active = timeRange === preset.value;
-                return (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    onClick={() => setTimeRange(preset.value)}
-                    className={`group flex flex-col rounded-2xl border px-4 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${
-                      active
-                        ? "border-brand bg-brand/10 text-brand"
-                        : "border-brand/10 bg-white hover:border-brand/30"
-                    }`}
-                    aria-pressed={active}
-                  >
-                    <span className="text-sm font-semibold">{preset.label}</span>
-                    <span className="text-xs text-slate-500">{preset.helper}</span>
-                  </button>
-                );
-              })}
-            </div>
+        <fieldset className="space-y-3">
+          <legend className="text-xs uppercase tracking-wide text-slate-500">Quick ranges</legend>
+          <div className="flex flex-wrap gap-2">
+            {TIME_RANGE_PRESETS.map((preset) => {
+              const active = timeRange === preset.value;
+              return (
+                <label
+                  key={preset.value}
+                  className={`group flex cursor-pointer flex-col rounded-2xl border px-4 py-3 text-left transition focus-within:outline focus-within:outline-2 focus-within:outline-brand ${
+                    active
+                      ? "border-brand bg-brand/10 text-brand"
+                      : "border-brand/10 bg-white hover:border-brand/30"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="time-range"
+                    value={preset.value}
+                    checked={active}
+                    onChange={() => setTimeRange(preset.value)}
+                    className="sr-only"
+                  />
+                  <span className="text-sm font-semibold">{preset.label}</span>
+                  <span className="text-xs text-slate-500">{preset.helper}</span>
+                </label>
+              );
+            })}
           </div>
-
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Methods</div>
-            <div className="flex flex-wrap gap-2">
-              {METHOD_FILTERS.map((item) => {
-                const active = methodFilters.includes(item.value);
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => toggleMethod(item.value)}
-                    className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${
-                      active
-                        ? "border-brand bg-brand/10 text-brand"
-                        : "border-brand/15 bg-white text-slate-600 hover:border-brand/30"
-                    }`}
-                    aria-pressed={active}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Reasons</div>
-            <div className="flex flex-wrap gap-2">
-              {REASON_FILTERS.map((item) => {
-                const active = reasonFilters.includes(item.value);
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => toggleReason(item.value)}
-                    className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${
-                      active
-                        ? "border-accent bg-accent/20 text-accent-500"
-                        : "border-brand/15 bg-white text-slate-600 hover:border-brand/30"
-                    }`}
-                    aria-pressed={active}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        </fieldset>
 
         {timeRange === "custom" && (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -739,6 +725,84 @@ export default function AnalyticsPage() {
             </label>
           </div>
         )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <fieldset className="space-y-3">
+            <legend className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
+              <span>Methods</span>
+              {methodFilters.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMethodFilters([])}
+                  className="text-[11px] font-semibold uppercase text-brand transition hover:text-brand-600"
+                >
+                  Clear
+                </button>
+              )}
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {METHOD_FILTERS.map((item) => {
+                const active = methodFilters.includes(item.value);
+                return (
+                  <label
+                    key={item.value}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline focus-within:outline-2 focus-within:outline-brand ${
+                      active
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "border-brand/10 bg-white text-slate-600 hover:border-brand/25"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={() => toggleMethod(item.value)}
+                      className="h-4 w-4 rounded border-brand/30 text-brand focus:ring-brand/40"
+                    />
+                    <span>{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3">
+            <legend className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
+              <span>Reasons</span>
+              {reasonFilters.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setReasonFilters([])}
+                  className="text-[11px] font-semibold uppercase text-brand transition hover:text-brand-600"
+                >
+                  Clear
+                </button>
+              )}
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {REASON_FILTERS.map((item) => {
+                const active = reasonFilters.includes(item.value);
+                return (
+                  <label
+                    key={item.value}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline focus-within:outline-2 focus-within:outline-brand ${
+                      active
+                        ? "border-accent bg-accent/15 text-accent-600"
+                        : "border-brand/10 bg-white text-slate-600 hover:border-brand/25"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={() => toggleReason(item.value)}
+                      className="h-4 w-4 rounded border-brand/30 text-brand focus:ring-brand/40"
+                    />
+                    <span>{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        </div>
       </Card>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">

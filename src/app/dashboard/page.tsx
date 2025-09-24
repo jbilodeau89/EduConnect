@@ -250,32 +250,36 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand to-brand-700 text-white shadow-[0_35px_65px_-45px_rgba(15,23,42,0.8)]">
-        <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_top,rgba(244,162,97,0.45),transparent_60%)]" aria-hidden />
+      <section className="relative overflow-hidden rounded-3xl border border-brand/15 bg-white text-slate-900 shadow-[0_35px_65px_-45px_rgba(15,23,42,0.08)]">
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/10 via-transparent to-accent/10"
+          aria-hidden
+        />
+        <div className="absolute -right-20 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(30,64,175,0.18),transparent_60%)]" aria-hidden />
         <div className="relative flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-accent">
+          <div className="max-w-2xl space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-brand">
               Welcome back, {name}
             </p>
-            <h1 className="mt-3 text-3xl md:text-4xl font-semibold">
+            <h1 className="text-3xl font-semibold md:text-4xl">
               Guide every family partnership with confidence.
             </h1>
-            <p className="mt-3 text-sm text-white/85">
+            <p className="text-sm text-slate-600">
               Today’s dashboard highlights the students you are connecting with most, the methods you rely on,
               and the conversations still waiting for a follow-up.
             </p>
           </div>
 
-          <div className="flex flex-col items-start gap-3 rounded-2xl bg-white/10 p-6 text-left backdrop-blur">
-            <span className="text-xs uppercase tracking-[0.3em] text-white/70">
-              Weekly impact
-            </span>
+          <div className="flex flex-col items-start gap-3 rounded-2xl bg-gradient-to-br from-brand to-brand-700 p-6 text-left text-white shadow-lg shadow-brand/20">
+            <span className="text-xs uppercase tracking-[0.3em] text-white/80">Weekly impact</span>
             <div className="text-4xl font-semibold">{contactsThisWeek}</div>
-            <p className="text-sm text-white/80">
+            <p className="text-sm text-white/85">
               logged touchpoints with families in the last seven days.
             </p>
             <Link href="/dashboard/contacts" className="inline-flex">
-              <Button className="shadow-lg shadow-brand/30">Log a touchpoint</Button>
+              <Button variant="secondary" className="bg-white text-brand shadow-sm shadow-black/10 hover:bg-white">
+                Log a touchpoint
+              </Button>
             </Link>
           </div>
         </div>
