@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabaseClient";
 
+export const dynamic = "force-dynamic";
+
 type Mode = "signin" | "signup";
 
 // Minimal row shape for profiles upsert (no generated types needed)

@@ -167,7 +167,7 @@ export default function DashboardPage() {
 
   // Realtime broadcasts → instant updates
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !appChannel) return;
 
     const sub = appChannel
       .on("broadcast", { event: "student:created" }, (msg: { payload?: unknown }) => {
