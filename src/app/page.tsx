@@ -78,9 +78,11 @@ export default function LandingPage() {
 
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session) {
-        router.push("/dashboard");
+        router.push("/onboarding/subscribe");
       } else {
-        setNote("Check your email to confirm your account. You can sign in after confirming.");
+        setNote(
+          "Check your email to confirm your account. Once confirmed, you'll be prompted to subscribe for $1/month."
+        );
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -113,6 +115,9 @@ export default function LandingPage() {
             <p className="mt-4 text-lg text-slate-700">
               One-line logs that stay organized, quick filters by student, topic, or method, and
               exports for meetings or documentation — all in seconds.
+            </p>
+            <p className="mt-3 text-base font-semibold text-brand-900">
+              EduContact is just $1 per educator each month after secure Stripe checkout.
             </p>
 
             <div className="mt-6 flex items-center gap-3">
@@ -170,7 +175,7 @@ export default function LandingPage() {
             <p className="mt-1 text-sm muted">
               {mode === "signin"
                 ? "Log contact with families in seconds."
-                : "Start organizing communications in minutes."}
+                : "Start organizing communications in minutes — only $1/month."}
             </p>
 
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -236,8 +241,8 @@ export default function LandingPage() {
             </form>
 
             <p className="mt-3 text-xs muted">
-              By continuing, you agree to our <a href="#" className="underline">terms</a>. You can sign
-              out anytime in Settings.
+              By continuing, you agree to our <a href="#" className="underline">terms</a>. Subscriptions are
+              $1/month per educator and billed through Stripe. You can sign out anytime in Settings.
             </p>
           </div>
         </div>
