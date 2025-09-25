@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -22,11 +23,7 @@ export async function POST(req: Request) {
 
     const priceId = process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
 
-    if (!priceId) {
-      if (!PAYMENT_LINK_URL) {
-        return NextResponse.json({ error: "Payment link not configured" }, { status: 500 });
-      }
-
+    if (!priceId && PAYMENT_LINK_URL) {
       const url = new URL(PAYMENT_LINK_URL);
       if (user.email) url.searchParams.set("prefilled_email", user.email);
       url.searchParams.set("client_reference_id", user.id);
@@ -42,13 +39,25 @@ export async function POST(req: Request) {
       metadata: { supabase_user_id: user.id },
     });
 
+    const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = priceId
+      ? { price: priceId, quantity: 1 }
+      : {
+          price_data: {
+            currency: "usd",
+            product_data: { name: "EduContact Subscription" },
+            recurring: { interval: "month" },
+            unit_amount: 100,
+          },
+          quantity: 1,
+        };
+
     const success_url = `${baseUrl}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancel_url = `${baseUrl}/dashboard/billing?canceled=1`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customer.id,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [lineItem],
       allow_promotion_codes: true,
       billing_address_collection: "auto",
       success_url,
