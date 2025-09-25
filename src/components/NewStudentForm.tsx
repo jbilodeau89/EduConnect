@@ -85,7 +85,7 @@ export default function NewStudentForm({
       const row = data as unknown as StudentRow;
 
       // Broadcast to dashboard (increment Total Students)
-      appChannel.send({
+      appChannel?.send?.({
         type: "broadcast",
         event: "student:created",
         payload: { owner_id: ownerId, id: row.id },
