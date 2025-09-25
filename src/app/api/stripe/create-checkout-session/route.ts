@@ -21,14 +21,6 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const stripe = getStripe();
-
-    const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
-    const customer = existing.data[0] ?? await stripe.customers.create({
-      email: user.email ?? undefined,
-      metadata: { supabase_user_id: user.id },
-    });
-
     const priceId = process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
 
     if (!priceId && PAYMENT_LINK_URL) {
@@ -38,6 +30,14 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ url: url.toString() });
     }
+
+    const stripe = getStripe();
+
+    const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
+    const customer = existing.data[0] ?? await stripe.customers.create({
+      email: user.email ?? undefined,
+      metadata: { supabase_user_id: user.id },
+    });
 
     const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = priceId
       ? { price: priceId, quantity: 1 }
