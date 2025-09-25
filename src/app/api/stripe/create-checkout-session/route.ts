@@ -13,13 +13,21 @@ const PAYMENT_LINK_URL =
 
 export async function POST(req: Request) {
   try {
-    const baseUrl = new URL(req.url).origin;
+    const base = new URL(req.url).origin;
 
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const stripe = getStripe();
+
+    const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
+    const customer = existing.data[0] ?? await stripe.customers.create({
+      email: user.email ?? undefined,
+      metadata: { supabase_user_id: user.id },
+    });
 
     const priceId = process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
 
@@ -30,14 +38,6 @@ export async function POST(req: Request) {
 
       return NextResponse.json({ url: url.toString() });
     }
-
-    const stripe = getStripe();
-
-    const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
-    const customer = existing.data[0] ?? await stripe.customers.create({
-      email: user.email ?? undefined,
-      metadata: { supabase_user_id: user.id },
-    });
 
     const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = priceId
       ? { price: priceId, quantity: 1 }
@@ -51,8 +51,8 @@ export async function POST(req: Request) {
           quantity: 1,
         };
 
-    const success_url = `${baseUrl}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`;
-    const cancel_url = `${baseUrl}/dashboard/billing?canceled=1`;
+    const success_url = `${base}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`;
+    const cancel_url = `${base}/dashboard/billing?canceled=1`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
