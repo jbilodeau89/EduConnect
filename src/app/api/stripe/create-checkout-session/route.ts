@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const PAYMENT_LINK_URL =
   process.env.STRIPE_PAYMENT_LINK_URL ||
   process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_URL ||
-  "https://buy.stripe.com/7sYbJ19A23Eb6aGfP9";
+  "https://buy.stripe.com/7sYbJ19A23Eb6aGfP9fbq04";
 
 export async function POST() {
   try {
