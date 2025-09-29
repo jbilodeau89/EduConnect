@@ -17,30 +17,45 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const priceId = process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+    const success_url = `${base}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`;
+    const cancel_url  = `${base}/dashboard/billing?canceled=1`;
+
+    if (!priceId) {
+      const hostedCheckoutUrl = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL;
+      if (!hostedCheckoutUrl) {
+        return NextResponse.json({ error: "Stripe is not configured" }, { status: 500 });
+      }
+
+      const hostedUrl = new URL(hostedCheckoutUrl);
+      if (user.email) {
+        hostedUrl.searchParams.set("prefilled_email", user.email);
+      }
+      hostedUrl.searchParams.set("client_reference_id", user.id);
+      hostedUrl.searchParams.set("success_url", success_url);
+      hostedUrl.searchParams.set("cancel_url", cancel_url);
+
+      return NextResponse.json({ url: hostedUrl.toString() });
+    }
+
     const stripe = getStripe();
 
     // Reuse/create customer by email
     const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
-    const customer = existing.data[0] ?? await stripe.customers.create({
-      email: user.email ?? undefined,
-      metadata: { supabase_user_id: user.id },
-    });
+    let customer = existing.data[0];
 
-    const priceId = process.env.STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
-    const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = priceId
-      ? { price: priceId, quantity: 1 }
-      : {
-          price_data: {
-            currency: "usd",
-            product_data: { name: "EduContact Subscription" },
-            recurring: { interval: "month" },
-            unit_amount: 100,
-          },
-          quantity: 1,
-        };
+    if (!customer) {
+      customer = await stripe.customers.create({
+        email: user.email ?? undefined,
+        metadata: { supabase_user_id: user.id },
+      });
+    } else if (customer.metadata?.supabase_user_id !== user.id) {
+      customer = await stripe.customers.update(customer.id, {
+        metadata: { ...customer.metadata, supabase_user_id: user.id },
+      });
+    }
 
-    const success_url = `${base}/dashboard/billing?success=1&session_id={CHECKOUT_SESSION_ID}`;
-    const cancel_url  = `${base}/dashboard/billing?canceled=1`;
+    const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = { price: priceId, quantity: 1 };
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -52,6 +67,7 @@ export async function POST(req: Request) {
       cancel_url,
       subscription_data: { metadata: { supabase_user_id: user.id } },
       metadata: { supabase_user_id: user.id },
+      client_reference_id: user.id,
     });
 
     return NextResponse.json({ url: session.url });

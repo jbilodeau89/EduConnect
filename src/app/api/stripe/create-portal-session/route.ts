@@ -5,8 +5,9 @@ import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    const base = new URL(req.url).origin;
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
@@ -15,14 +16,22 @@ export async function POST() {
 
     const stripe = getStripe();
 
-    const return_url = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "") + "/dashboard/billing";
+    const return_url = `${base}/dashboard/billing`;
 
     // Find or create customer
     const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
-    const customer = existing.data[0] ?? await stripe.customers.create({
-      email: user.email ?? undefined,
-      metadata: { supabase_user_id: user.id },
-    });
+    let customer = existing.data[0];
+
+    if (!customer) {
+      customer = await stripe.customers.create({
+        email: user.email ?? undefined,
+        metadata: { supabase_user_id: user.id },
+      });
+    } else if (customer.metadata?.supabase_user_id !== user.id) {
+      customer = await stripe.customers.update(customer.id, {
+        metadata: { ...customer.metadata, supabase_user_id: user.id },
+      });
+    }
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customer.id,
