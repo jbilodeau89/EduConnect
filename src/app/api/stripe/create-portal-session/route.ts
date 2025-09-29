@@ -20,15 +20,15 @@ export async function POST(req: Request) {
 
     // Find or create customer
     const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
-    let customer = existing.data[0];
-
-    if (!customer) {
-      customer = await stripe.customers.create({
+    const customer =
+      existing.data[0] ??
+      (await stripe.customers.create({
         email: user.email ?? undefined,
         metadata: { supabase_user_id: user.id },
-      });
-    } else if (customer.metadata?.supabase_user_id !== user.id) {
-      customer = await stripe.customers.update(customer.id, {
+      }));
+
+    if (customer.metadata?.supabase_user_id !== user.id) {
+      await stripe.customers.update(customer.id, {
         metadata: { ...customer.metadata, supabase_user_id: user.id },
       });
     }
