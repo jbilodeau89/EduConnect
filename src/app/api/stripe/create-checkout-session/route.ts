@@ -40,16 +40,25 @@ export async function POST(req: Request) {
 
     const stripe = getStripe();
 
-    // Reuse/create customer by email
-    const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
-    const customer =
-      existing.data[0] ??
-      (await stripe.customers.create({
+    // Prefer matching by Supabase metadata, then fall back to email lookup.
+    const byMetadata = await stripe.customers.search({
+      query: `metadata['supabase_user_id']:'${user.id}'`,
+      limit: 1,
+    });
+
+    let customer: Stripe.Customer | undefined = byMetadata.data[0];
+
+    if (!customer && user.email) {
+      const byEmail = await stripe.customers.list({ email: user.email, limit: 1 });
+      customer = byEmail.data[0];
+    }
+
+    if (!customer) {
+      customer = await stripe.customers.create({
         email: user.email ?? undefined,
         metadata: { supabase_user_id: user.id },
-      }));
-
-    if (customer.metadata?.supabase_user_id !== user.id) {
+      });
+    } else if (customer.metadata?.supabase_user_id !== user.id) {
       await stripe.customers.update(customer.id, {
         metadata: { ...customer.metadata, supabase_user_id: user.id },
       });

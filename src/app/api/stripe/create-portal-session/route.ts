@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -18,16 +19,24 @@ export async function POST(req: Request) {
 
     const return_url = `${base}/dashboard/billing`;
 
-    // Find or create customer
-    const existing = await stripe.customers.list({ email: user.email ?? undefined, limit: 1 });
-    const customer =
-      existing.data[0] ??
-      (await stripe.customers.create({
+    const byMetadata = await stripe.customers.search({
+      query: `metadata['supabase_user_id']:'${user.id}'`,
+      limit: 1,
+    });
+
+    let customer: Stripe.Customer | undefined = byMetadata.data[0];
+
+    if (!customer && user.email) {
+      const byEmail = await stripe.customers.list({ email: user.email, limit: 1 });
+      customer = byEmail.data[0];
+    }
+
+    if (!customer) {
+      customer = await stripe.customers.create({
         email: user.email ?? undefined,
         metadata: { supabase_user_id: user.id },
-      }));
-
-    if (customer.metadata?.supabase_user_id !== user.id) {
+      });
+    } else if (customer.metadata?.supabase_user_id !== user.id) {
       await stripe.customers.update(customer.id, {
         metadata: { ...customer.metadata, supabase_user_id: user.id },
       });
